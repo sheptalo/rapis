@@ -45,3 +45,5 @@ pip install ./folder
 - [ ] rewrite path patterns logic
 - [ ] review Middleware logic (it was taked from fastapi)
 - [ ] websocket support(maybe)
+- [ ] coverage
+- [ ] typing support (for now a few Errors in mypy, maybe start using TY)
