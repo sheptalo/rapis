@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rapis"
 version = "0.0.1"
-description = "Add your description here"
+description = "Minimalistic web library"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
