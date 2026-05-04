@@ -1,4 +1,4 @@
-# Rapis - Minimalistic web library
+# Rapis - Minimalistic web library based on RSGI
 
 this library was inspired by FastAPI so syntax may be identical
 
