@@ -9,6 +9,7 @@ Key features:
 - **Easy to use**: Syntax was inspired by your favourite framework
 - **Fast**: Built on Granian in native RSGI protocol with MsgSpec support
 - **Async Only**: Supports only work with async requests handling
+- **Validation**: Built-in support of MsgSpec providing first-class Validation Speed
 
 ## Requirements
 
