@@ -17,19 +17,18 @@ async def root() -> dict:
 app.include_router(router)
 ```
 
+## BENCHMARKS
+
+section about speed of library (WIP)
+
 ## Installation
 
 ### ! WARNING: Library in early development, it is NOT READY for production
 
 ### from Pypi
 
-#### WIP
-
-### from source
-
 ```bash
-git clone https://github.com/sheptalo/rapis folder
-pip install ./folder
+pip install rapis
 ```
 
 ## DOCS will be implemented soon
@@ -47,3 +46,7 @@ pip install ./folder
 - [ ] websocket support(maybe)
 - [ ] coverage
 - [ ] typing support (for now a few Errors in mypy, maybe start using TY)
+
+## CONTRIBUTING
+
+see [CONTRIBUTING.md](CONTRIBUTING.md)
