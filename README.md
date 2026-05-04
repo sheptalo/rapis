@@ -12,8 +12,8 @@ Key features:
 
 ## Requirements
 
-- [granian](https://github.com/emmett-framework/granian)
-- [msgspec](https://github.com/jcrist/msgspec)
+- [granian](https://github.com/emmett-framework/granian): A Rust HTTP server for Python applications
+- [msgspec](https://github.com/jcrist/msgspec): A fast serialization and validation library
 
 
 ## Installation
