@@ -1,8 +1,32 @@
 # Rapis - Minimalistic web library based on RSGI
 
-this library was inspired by FastAPI so syntax may be identical
+_this library was inspired by FastAPI so syntax may be identical_
+
+### ! WARNING: Library in early development, it is NOT READY for production
+
+Key features:
+
+- **Easy to use**: Syntax was inspired by your favourite framework
+- **Fast**: Built on Granian in native RSGI protocol with MsgSpec support
+- **Async Only**: Supports only work with async requests handling
+
+## Requirements
+
+- [granian](https://github.com/emmett-framework/granian)
+- [msgspec](https://github.com/jcrist/msgspec)
+
+
+## Installation
+
+
+```bash
+pip install rapis
+```
+
+## Example
 
 ```python
+# main.py
 from rapis import AppRouter, WebApp
 
 app = WebApp()
@@ -17,19 +41,15 @@ async def root() -> dict:
 app.include_router(router)
 ```
 
-## BENCHMARKS
-
-section about speed of library (WIP)
-
-## Installation
-
-### ! WARNING: Library in early development, it is NOT READY for production
-
-### from Pypi
+### Run
 
 ```bash
-pip install rapis
+granian main:app
 ```
+
+## Performance
+
+section about speed of library (WIP)
 
 ## DOCS will be implemented soon
 
