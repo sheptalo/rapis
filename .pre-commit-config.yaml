@@ -1,5 +1,5 @@
 default_language_version:
-  python: python3.14
+  python: python3.12
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -27,14 +27,6 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  # - repo: local
-    # hooks:
-      # - id: mypy commented for now
-      #   name: mypy
-      #   entry: mypy .
-      #   language: "python"
-      #   require_serial: true
-      #   pass_filenames: false
   - repo: meta
     hooks:
       - id: check-hooks-apply

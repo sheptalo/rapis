@@ -4,13 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rapis"
-version = "0.0.1"
-description = "Minimalistic web library"
+version = "0.0.2"
+description = "Minimalistic web framework"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "granian>=2.7.4",
     "msgspec>=0.21.1",
+]
+license = {file = "LICENSE"}
+keywords = ["web-framework", "web", "async", "asyncio", "rsgi", "granian", "http"]
+authors = [
+  {email = "shept@sinortax.ru"},
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Web Environment",
+  "Topic :: Internet :: WWW/HTTP",
+  "Programming Language :: Python",
+  "Programming Language :: Python3",
 ]
 
 [tool.setuptools]
@@ -19,9 +31,9 @@ packages = ["rapis"]
 
 [dependency-groups]
 dev = [
-    "mypy>=1.20.2",
     "pre-commit>=4.6.0",
     "ruff>=0.15.12",
+    "ty>=0.0.34",
 ]
 
 

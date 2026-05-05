@@ -58,16 +58,18 @@ section about speed of library (WIP)
 ## TODO
 
 - [ ] Exception handling
+- [ ] path params
+- [ ] Benchmarks section
 - [ ] Request/Response Work model
 - [ ] Docs
-- [ ] More availabilities to expand logic
-- [ ] better Query params handle
-- [ ] chage routing from linear to something else
-- [ ] rewrite path patterns logic
+- [ ] More availabilities to expand logic (custom routes and other)
+- [ ] better Query params handle (for now not fully tested)
+- [ ] chage routing from linear to something else (hash maps for static paths, ?? for dynamic paths)
+- [ ] rewrite path patterns logic (without context vars)
 - [ ] review Middleware logic (it was taked from fastapi)
 - [ ] websocket support(maybe)
 - [ ] coverage
-- [ ] typing support (for now a few Errors in mypy, maybe start using TY)
+- [X] typing support in TY
 
 ## CONTRIBUTING
 

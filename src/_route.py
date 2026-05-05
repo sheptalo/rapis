@@ -5,11 +5,7 @@ from typing import Any
 from granian._granian import RSGIHTTPProtocol
 from granian.rsgi import Scope
 
-from ._handler import (
-    Handler,
-)
 from ._middleware import Middleware
-from ._path_pattern import compile_route_path, match_route_path
 
 
 class Route:
@@ -21,13 +17,8 @@ class Route:
         methods: Collection[HTTPMethod] | None = None,
         middleware: Sequence[Middleware] | None = None,
     ) -> None:
-        self._path = path
-        self._compiled, self._path_field_names = compile_route_path(path)
+        self.path = path
         self.endpoint = endpoint
-
-        if isinstance(endpoint, Handler):
-            endpoint.set_path_fields(self._path_field_names)
-
         self.app = endpoint
 
         if middleware is not None:
@@ -41,22 +32,11 @@ class Route:
             if "GET" in self.methods:
                 self.methods.add("HEAD")
 
-    @property
-    def path(self) -> str:
-        return self._path
-
-    @path.setter
-    def path(self, value: str) -> None:
-        self._path = value
-        self._compiled, self._path_field_names = compile_route_path(value)
-        if isinstance(self.endpoint, Handler):
-            self.endpoint.set_path_fields(self._path_field_names)
-
     async def __call__(self, scope: Scope, proto: RSGIHTTPProtocol) -> None:
         await self.handle(scope, proto)
 
     def matches(self, scope: Scope) -> bool:
-        return match_route_path(self._compiled, scope.path) is not None
+        return scope.path == scope.path
 
     async def handle(
         self,
