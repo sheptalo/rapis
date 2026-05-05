@@ -1,8 +1,34 @@
-# Rapis - Minimalistic web library
+# Rapis - Minimalistic web library based on RSGI
 
-this library was inspired by FastAPI so syntax may be identical
+_this library was inspired by FastAPI so syntax may be identical_
+
+### ! WARNING: Library in early development, it is NOT READY for production
+
+Key features:
+
+- **Easy to use**: Syntax was inspired by your favourite framework
+- **Fast**: Built on Granian in native RSGI protocol with MsgSpec support
+- **Async Only**: Supports only work with async requests handling
+- **Validation**: Built-in support of MsgSpec providing first-class Validation Speed
+- **Functional that actually MATTER**: Framework contains _Only_ what you need to build API _without unnecessary_ dependencies
+
+## Requirements
+
+- [granian](https://github.com/emmett-framework/granian): A Rust HTTP server for Python applications
+- [msgspec](https://github.com/jcrist/msgspec): A fast serialization and validation library
+
+
+## Installation
+
+
+```bash
+pip install rapis
+```
+
+## Example
 
 ```python
+# main.py
 from rapis import AppRouter, WebApp
 
 app = WebApp()
@@ -17,20 +43,15 @@ async def root() -> dict:
 app.include_router(router)
 ```
 
-## Installation
-
-### ! WARNING: Library in early development, it is NOT READY for production
-
-### from Pypi
-
-#### WIP
-
-### from source
+### Run
 
 ```bash
-git clone https://github.com/sheptalo/rapis folder
-pip install ./folder
+granian main:app
 ```
+
+## Performance
+
+section about speed of library (WIP)
 
 ## DOCS will be implemented soon
 
@@ -47,3 +68,7 @@ pip install ./folder
 - [ ] websocket support(maybe)
 - [ ] coverage
 - [ ] typing support (for now a few Errors in mypy, maybe start using TY)
+
+## CONTRIBUTING
+
+see [CONTRIBUTING.md](CONTRIBUTING.md)
