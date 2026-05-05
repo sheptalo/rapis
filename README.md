@@ -10,6 +10,7 @@ Key features:
 - **Fast**: Built on Granian in native RSGI protocol with MsgSpec support
 - **Async Only**: Supports only work with async requests handling
 - **Validation**: Built-in support of MsgSpec providing first-class Validation Speed
+- **Functional that actually MATTER**: Framework contains _Only_ what you need to build API _without unnecessary_ dependencies
 
 ## Requirements
 
