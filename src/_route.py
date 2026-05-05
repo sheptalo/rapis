@@ -7,8 +7,6 @@ from granian.rsgi import Scope
 
 from ._handler import (
     Handler,
-    path_params_context_token,
-    reset_path_params_context,
 )
 from ._middleware import Middleware
 from ._path_pattern import compile_route_path, match_route_path
@@ -55,11 +53,7 @@ class Route:
             self.endpoint.set_path_fields(self._path_field_names)
 
     async def __call__(self, scope: Scope, proto: RSGIHTTPProtocol) -> None:
-        matched = match_route_path(self._compiled, scope.path)
-        if matched is None:
-            proto.response_str(HTTPStatus.NOT_FOUND, [], "Not found")
-            return
-        await self.handle(scope, proto, matched)
+        await self.handle(scope, proto)
 
     def matches(self, scope: Scope) -> bool:
         return match_route_path(self._compiled, scope.path) is not None
@@ -68,7 +62,6 @@ class Route:
         self,
         scope: Scope,
         proto: RSGIHTTPProtocol,
-        matched: dict[str, str],
     ) -> None:
         if self.methods and scope.method not in self.methods:
             headers = [("Allow", ", ".join(sorted(self.methods)))]
@@ -77,11 +70,7 @@ class Route:
             )
             return
 
-        token = path_params_context_token(matched)
-        try:
-            await self.app(scope, proto)
-        finally:
-            reset_path_params_context(token)
+        await self.app(scope, proto)
 
     def __eq__(self, other: Any) -> bool:
         return (

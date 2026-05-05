@@ -3,7 +3,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
-from http import HTTPStatus
+from http import HTTPMethod, HTTPStatus
 from typing import Any, Literal, get_type_hints
 from urllib.parse import parse_qsl
 
@@ -67,9 +67,12 @@ class Handler:
     ) -> dict[str, Any]:
         kwargs: dict[str, Any] = {}
         decoded_body = {}
-        with suppress(DecodeError):
-            decoded_body = msgspec.json.decode(await proto())
-        query_dict = dict(parse_qsl(scope.query_string))
+        if scope.method in {HTTPMethod.POST, HTTPMethod.PUT, HTTPMethod.PATCH}:
+            with suppress(DecodeError):
+                decoded_body = msgspec.json.decode(await proto())
+        query_dict = {}
+        if scope.query_string:
+            query_dict = dict(parse_qsl(scope.query_string))
         path_ctx = _current_path_params()
 
         for b in self.bindings:
