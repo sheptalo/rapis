@@ -29,9 +29,8 @@ pip install rapis
 
 ```python
 # main.py
-from rapis import AppRouter, WebApp
+from rapis import AppRouter, Query, WebApp
 
-app = WebApp()
 router = AppRouter()
 
 
@@ -40,13 +39,57 @@ async def root() -> dict:
     return {}
 
 
+@router.get("/echo")
+async def parametrized_handler(
+    data: Query[str] = "default",
+) -> str:  # for now waiting for /echo?data=str if not given adds "default"
+    return data
+
+
+app = WebApp()
 app.include_router(router)
+
 ```
 
 ### Run
 
 ```bash
 granian main:app
+```
+
+## Better Example
+
+```python
+# routes.py
+from msgspec import Struct
+from rapis import AppRouter, Query
+
+router = AppRouter()
+
+
+class Item(Struct):
+    name: str
+
+
+@router.get("/queries_with_struct")
+async def fetch_item(item: Query[Item]):  # no default means required and will expect to receive all fields in query params
+    return Item(name="query")  # automatically parses to {"name": "query"}
+
+
+@router.post("/echo") # also put, patch
+async def fetch_item(item: Item):  # will try to read and validate all fields from body
+    return item
+
+```
+
+```python
+# main.py
+from rapis import WebApp
+
+from routes import router
+
+app = WebApp()
+app.include_router(router)
 ```
 
 ## Performance
@@ -57,15 +100,14 @@ section about speed of library (WIP)
 
 ## TODO
 
-- [ ] Exception handling
-- [ ] path params
+- [ ] Exception handling (includes 500 when validation not passed)
 - [ ] Benchmarks section
 - [ ] Request/Response Work model
 - [ ] Docs
 - [ ] More availabilities to expand logic (custom routes and other)
-- [ ] better Query params handle (for now not fully tested)
-- [ ] chage routing from linear to something else (hash maps for static paths, ?? for dynamic paths)
-- [ ] rewrite path patterns logic (without context vars)
+- [X] better Query params handle
+- [ ] change routing from linear to something else (hash maps for static paths, ?? for dynamic paths)
+- [ ] path patterns logic
 - [ ] review Middleware logic (it was taked from fastapi)
 - [ ] websocket support(maybe)
 - [ ] coverage
