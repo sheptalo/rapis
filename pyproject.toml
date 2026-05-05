@@ -20,9 +20,13 @@ authors = [
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Environment :: Web Environment",
-  "Topic :: Internet :: WWW/HTTP",
   "Programming Language :: Python",
-  "Programming Language :: Python3",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Internet :: WWW/HTTP",
 ]
 
 [tool.setuptools]
