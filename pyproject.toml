@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rapis"
-version = "0.0.2"
+version = "0.0.3"
 description = "Minimalistic web framework"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -29,10 +29,6 @@ classifiers = [
   "Topic :: Internet :: WWW/HTTP",
 ]
 
-[tool.setuptools]
-package-dir = {"rapis" = "src"}
-packages = ["rapis"]
-
 [dependency-groups]
 dev = [
     "pre-commit>=4.6.0",
@@ -50,7 +46,7 @@ exclude = [
 ]
 line-length = 79
 indent-width = 4
-target-version = "py314"
+target-version = "py312"
 
 
 [tool.ruff.format]
@@ -99,12 +95,9 @@ select = [
     "S"
 ]
 ignore = [
-"N805", "D", "ANN401", "COM812", "S104", "TC", "TD003"
+"N805", "D", "ANN401", "COM812", "S104", "TC", "TD003", "B008"
 ]
 fixable = ["ALL"]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "ANN"]
 
 [tool.ruff.lint.pylint]
 max-returns = 5

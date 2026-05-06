@@ -7,7 +7,7 @@ _this library was inspired by FastAPI so syntax may be identical_
 Key features:
 
 - **Easy to use**: Syntax was inspired by your favourite framework
-- **Fast**: Built on Granian in native RSGI protocol with MsgSpec support
+- **Fast**: Built on native RSGI protocol with MsgSpec support
 - **Async Only**: Supports only work with async requests handling
 - **Validation**: Built-in support of MsgSpec providing first-class Validation Speed
 - **Functional that actually MATTER**: Framework contains _Only_ what you need to build API _without unnecessary_ dependencies
@@ -92,6 +92,8 @@ app = WebApp()
 app.include_router(router)
 ```
 
+see more in [examples](examples)
+
 ## Performance
 
 section about speed of library (WIP)
@@ -100,7 +102,8 @@ section about speed of library (WIP)
 
 ## TODO
 
-- [ ] Exception handling (includes 500 when validation not passed)
+- [X] Exception handling
+- [ ] Built-in exception handlers (validation, json parsing)
 - [ ] Benchmarks section
 - [ ] Request/Response Work model
 - [ ] Docs
@@ -108,10 +111,12 @@ section about speed of library (WIP)
 - [X] better Query params handle
 - [ ] change routing from linear to something else (hash maps for static paths, ?? for dynamic paths)
 - [ ] path patterns logic
-- [ ] review Middleware logic (it was taked from fastapi)
+- [ ] review Middleware logic (partially reviewed)
 - [ ] websocket support(maybe)
 - [ ] coverage
 - [X] typing support in TY
+- [X] some examples
+- [ ] Problem: how to authenticate users?
 
 ## CONTRIBUTING
 

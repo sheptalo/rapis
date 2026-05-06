@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from typing import Any, Protocol
 
-from ._types import RSGIApp
+from rapis.types import RSGIApp
 
 
 class _MiddlewareFactory[**P](Protocol):

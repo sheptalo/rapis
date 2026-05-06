@@ -2,17 +2,14 @@ from collections.abc import Callable, Sequence
 from http import HTTPMethod, HTTPStatus
 from typing import Any
 
-from granian._granian import RSGIHTTPProtocol
-from granian.rsgi import Scope
-
-from ._handler import Handler
-from ._middleware import Middleware
-from ._route import Route
-from ._types import RSGIApp
+from rapis._handler import Handler
+from rapis.middlewares import Middleware
+from rapis.routing import Route
+from rapis.types import HttpProtocol, RSGIApp, Scope
 
 
 class AppRouter:
-    def __init__(  # TODO(): exception handle
+    def __init__(
         self,
         prefix: str = "",
         middlewares: Sequence[Middleware] | None = None,
@@ -24,6 +21,7 @@ class AppRouter:
             middlewares = []
         self.prefix = prefix
         self.routes: list[Route] = []
+        self.exception_handlers = []
         self.middlewares = middlewares
         self.route_class = route_class
         self.default = default or self.not_found
@@ -87,7 +85,7 @@ class AppRouter:
     ) -> Callable[[Callable], Callable]:
         return self.route(url, methods=[HTTPMethod.TRACE], status=status)
 
-    async def __call__(self, scope: Scope, proto: RSGIHTTPProtocol) -> Any:
+    async def __call__(self, scope: Scope, proto: HttpProtocol) -> Any:
         for route in self.routes:
             if route.matches(scope):
                 await route(scope, proto)
@@ -95,10 +93,10 @@ class AppRouter:
         else:
             await self.default(scope, proto)
 
-    async def not_found(self, scope: Scope, proto: RSGIHTTPProtocol) -> Any:
+    async def not_found(self, scope: Scope, proto: HttpProtocol) -> Any:
         if scope.scheme == "http":
-            proto.response_str(
+            proto.response_bytes(
                 HTTPStatus.NOT_FOUND,
                 [("Content-type", "application/json")],
-                '{"detail":"Not Found"',
+                b'{"detail":"Not Found"}',
             )
