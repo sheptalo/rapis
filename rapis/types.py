@@ -11,7 +11,7 @@ type ExceptionHandler[T: Exception] = Callable[
 type Query[T] = T
 
 
-class HttpProtocol(RSGIHTTPProtocol): ...  # for now
+type HttpProtocol = RSGIHTTPProtocol
 
 
 class Scope:  # source: https://github.com/emmett-framework/granian/blob/master/docs/spec/RSGI.md

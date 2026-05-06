@@ -34,7 +34,7 @@ class Route:
         await self.handle(scope, proto)
 
     def matches(self, scope: Scope) -> bool:
-        return scope.path == scope.path
+        return scope.path == self.path
 
     async def handle(self, scope: Scope, proto: HttpProtocol) -> None:
         if self.methods and scope.method not in self.methods:

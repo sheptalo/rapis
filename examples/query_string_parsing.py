@@ -5,12 +5,12 @@ from rapis import AppRouter, Query, WebApp
 router = AppRouter()
 
 
-@router.get("/")
+@router.get("/default-str")
 async def url_with_default_query(name: Query[str] = "default") -> dict:
     return {"Hello": name}
 
 
-@router.get("/")
+@router.get("/required-str")
 async def url_without_default_query(name: Query[str]) -> dict:
     return {"Hello": f"required {name}"}
 
@@ -19,14 +19,14 @@ class User(Struct):
     name: str
 
 
-@router.get("/")
+@router.get("/struct-default")
 async def url_with_default_query_struct(
     user: Query[User] = User(""),
 ) -> User:  # it is recommend to not change your default structs
     return user
 
 
-@router.get("/")
+@router.get("/struct-required")
 async def url_without_default_query_struct(user: Query[User]) -> User:
     return user
 
