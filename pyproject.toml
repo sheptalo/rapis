@@ -28,6 +28,9 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Topic :: Internet :: WWW/HTTP",
 ]
+[project.urls]
+Documentation = "https://github.com/sheptalo/rapis/wiki"
+Source = "https://github.com/sinortax/rapis"
 
 [dependency-groups]
 dev = [
