@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rapis"
-version = "0.0.3"
+version = "0.0.4"
 description = "Minimalistic web framework"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -30,7 +30,7 @@ classifiers = [
 ]
 [project.urls]
 Documentation = "https://github.com/sheptalo/rapis/wiki"
-Source = "https://github.com/sinortax/rapis"
+Source = "https://github.com/sheptalo/rapis"
 
 [dependency-groups]
 dev = [

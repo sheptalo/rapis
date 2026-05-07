@@ -2,8 +2,7 @@ from collections.abc import Callable, Sequence
 from http import HTTPMethod, HTTPStatus
 from typing import Any
 
-from rapis._handler import Handler
-from rapis.middlewares import Middleware
+from rapis.entities.middleware import Middleware
 from rapis.routing import Route
 from rapis.types import HttpProtocol, RSGIApp, Scope
 
@@ -37,7 +36,8 @@ class AppRouter:
             self.routes.append(
                 self.route_class(
                     path=self.prefix + url,
-                    endpoint=Handler(func, status=status),
+                    endpoint=func,
+                    status=status,
                     methods=methods,
                     middleware=self.middlewares,
                 )

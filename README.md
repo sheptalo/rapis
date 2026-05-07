@@ -19,7 +19,7 @@ Key features:
 
 ## Requirements
 
-- [granian](https://github.com/emmett-framework/granian): A Rust HTTP server for Python applications
+- [granian](https://github.com/emmett-framework/granian): A Rust HTTP server for Python applications (soon will be optional)
 - [msgspec](https://github.com/jcrist/msgspec): A fast serialization and validation library
 
 
@@ -108,7 +108,7 @@ section about speed of library (WIP)
 ## TODO
 
 - [X] Exception handling
-- [ ] Built-in exception handlers (validation, json parsing)
+- [X] Built-in exception handlers (validation, json parsing)
 - [ ] Benchmarks section
 - [ ] Request/Response Work model
 - [ ] Docs
@@ -116,12 +116,13 @@ section about speed of library (WIP)
 - [X] better Query params handle
 - [ ] change routing from linear to something else (hash maps for static paths, ?? for dynamic paths)
 - [ ] path patterns logic
-- [ ] review Middleware logic (partially reviewed)
+- [X] review Middleware logic
 - [ ] websocket support(maybe)
 - [ ] coverage
 - [X] typing support in TY
 - [X] some examples
 - [ ] Problem: how to authenticate users?
+- [ ] https://jcristharif.com/msgspec/perf-tips.html
 
 ## CONTRIBUTING
 

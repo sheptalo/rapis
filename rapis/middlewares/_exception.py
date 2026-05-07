@@ -1,5 +1,9 @@
 from http import HTTPStatus
 
+import msgspec
+from msgspec import DecodeError
+
+from rapis.exceptions import ValidationError
 from rapis.types import ExceptionHandler, HttpProtocol, RSGIApp, Scope
 
 
@@ -47,6 +51,7 @@ class ExceptionMiddleware:
     ) -> None:
         self.app = app
         self.handlers = handlers
+        self.encoder = msgspec.json.Encoder()
 
     async def __call__(self, scope: Scope, proto: HttpProtocol) -> None:
         try:
@@ -55,5 +60,29 @@ class ExceptionMiddleware:
         except Exception as e:
             handler = self.handlers.get(type(e))
             if not handler:
-                raise
-            await handler(e, scope, proto)
+                if isinstance(e, ValidationError):
+                    await self.default_validation_error(e, scope, proto)
+                elif isinstance(e, DecodeError):
+                    await self.default_decode_error(e, scope, proto)
+                else:
+                    raise
+            else:
+                await handler(e, scope, proto)
+
+    async def default_validation_error(
+        self, exc: ValidationError, _scope: Scope, proto: HttpProtocol
+    ) -> None:
+        proto.response_bytes(
+            400,
+            [("Content-Type", "application/json")],
+            self.encoder.encode(exc.errors),
+        )
+
+    async def default_decode_error(
+        self, _: DecodeError, _scope: Scope, proto: HttpProtocol
+    ) -> None:
+        proto.response_bytes(
+            400,
+            [("Content-Type", "application/json")],
+            b'{"detail": "JSON Decode Error"}',
+        )
