@@ -1,3 +1,5 @@
+from functools import wraps
+
 import msgspec
 
 from rapis.entities.handler import Handler
@@ -7,6 +9,7 @@ from rapis.types import HttpProtocol, RSGIApp, Scope
 
 
 def route(handler: Handler) -> RSGIApp:
+    @wraps(handler.call)
     async def wrapper(scope: Scope, proto: HttpProtocol) -> None:
         parsed_kwargs, parsed_errors = await parse_bindings(
             handler, scope, proto

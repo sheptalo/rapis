@@ -4,9 +4,15 @@ from http import HTTPStatus
 
 class Handler:
     def __init__(
-        self, call: Callable, bindings: list, status: HTTPStatus
+        self,
+        call: Callable,
+        bindings: list,
+        status: HTTPStatus,
+        *,
+        is_request_response: bool = False,
     ) -> None:
         self.call = call
         self.status = status
         self.path_fields: frozenset[str] = frozenset()
         self.bindings = bindings
+        self.is_request_response = is_request_response

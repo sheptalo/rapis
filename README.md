@@ -1,13 +1,13 @@
-# Rapis - Minimalistic web library based on RSGI
+# Rapis - Minimalistic web framework based on RSGI
 
 [![Python versions](https://img.shields.io/pypi/pyversions/rapis.svg?color=%2334D058)](https://pypi.org/project/rapis)
 [![Current version](https://img.shields.io/pypi/v/rapis?color=%2334D058&label=PyPI)](https://pypi.org/project/rapis)
 [![Current status](https://img.shields.io/pypi/status/rapis)](https://pypi.org/project/rapis)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/rapis)
 
-_this library was inspired by FastAPI so syntax may be identical_
+_this framework was inspired by FastAPI so syntax may be identical_
 
-### ! WARNING: Library in early development, it is NOT READY for production
+### ! WARNING: Framework in early development, it is NOT READY for production
 
 Key features:
 
@@ -101,7 +101,7 @@ see more in [examples](examples)
 
 ## Performance
 
-section about speed of library (WIP)
+section about speed of framework (WIP)
 
 ## DOCS will be implemented soon
 

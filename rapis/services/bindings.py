@@ -71,7 +71,11 @@ async def parse_bindings(
             errors["detail"] = "Missing Required field"
             continue
         try:
-            value = msgspec.convert(data_source or b.default, b.type)
+            value = msgspec.convert(
+                data_source or b.default,
+                b.type,
+                strict=b.source is not ParamBindingSource.query,
+            )
         except msgspec.ValidationError as e:
             errors["detail"] = str(e)
             break

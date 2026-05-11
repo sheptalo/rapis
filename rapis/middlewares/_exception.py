@@ -9,8 +9,8 @@ from rapis.types import ExceptionHandler, HttpProtocol, RSGIApp, Scope
 
 class ServerExceptionMiddleware:
     """
-        Handles Every Exception to correctly end a request,
-        without it request rate goes to low on exceptions
+    Handles Every Exception to correctly end a request,
+    without it request rate goes to low on exceptions
 
     reraise_exception is recommended to OFF if RPS is very important
     """

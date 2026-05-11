@@ -39,12 +39,6 @@ class Route:
                 self.methods.add("HEAD")
 
     async def __call__(self, scope: Scope, proto: HttpProtocol) -> None:
-        await self.handle(scope, proto)
-
-    def matches(self, scope: Scope) -> bool:
-        return scope.path == self.path
-
-    async def handle(self, scope: Scope, proto: HttpProtocol) -> None:
         if self.methods and scope.method not in self.methods:
             headers = [("Allow", ", ".join(sorted(self.methods)))]
             proto.response_str(
@@ -53,6 +47,9 @@ class Route:
             return
 
         await self.app(scope, proto)
+
+    def matches(self, scope: Scope) -> bool:
+        return scope.path == self.path
 
     def __repr__(self) -> str:
         return (
