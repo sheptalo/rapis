@@ -13,7 +13,6 @@ Micro-benchmarks compare **rapis** with **Litestar**, **FastAPI**, and **Emmett*
   - **plain**: `GET /bench/plain` → small JSON body (`{"ok":…}`).
   - **validation**: `POST /bench/validate` with JSON payload; rapis validates via **msgspec** `Struct`; Litestar/FastAPI/Emmett via **Pydantic v2**.
   - **static routing**: `GET /bench/r/<index>` with **`BENCH_ROUTE_COUNT` static routes** registered at import time (default **256**); the probe hits the middle route (`TARGET_ROUTE_INDEX = ROUTE_COUNT // 2`).
-- Numbers fluctuate with CPU governor, thermal limits, and CI runners — treat results as **ordinal**, not absolute truth.
 
 ## Run locally
 
@@ -31,120 +30,65 @@ python benchmarks/run_benchmarks.py
 python benchmarks/render_readme.py
 ```
 
-CI performs the same steps via `.github/workflows/benchmarks.yml` (`workflow_dispatch` or weekly schedule).
-
 ---
 
 <!-- BENCHMARK_AUTO_START -->
 
-_Latest automated numbers (see workflow «Benchmarks»)._
+_Latest automated numbers (workflow «Benchmarks»)._
 
-#### Environment snapshot
+#### Runtime & load
 
-| Setting | Value |
-|---------|-------|
-| `granian` | granian 2.7.4 |
-| `oha` | oha 1.14.0 |
-| `duration` | 12s |
-| `connections` | 40 |
-| `route_count` | 256 |
-| routing probe path | `/bench/r/128` |
-| interfaces | rapis & Emmett use Granian RSGI; Litestar & FastAPI use Granian ASGI. |
+| Field | Value |
+|-------|-------|
+| Python | `3.12.13` |
+| Granian | `granian 2.7.4` |
+| oha | `oha 1.14.0` |
+| Load duration `-z` | `12s` |
+| Connections `-c` | `64` |
+| Static routes (`BENCH_ROUTE_COUNT`) | `256` |
+| Routing probe URL | `/bench/r/128` |
+| Interfaces | rapis & Emmett: Granian RSGI; Litestar & FastAPI: Granian ASGI. |
+
+#### Framework & library packages (PyPI)
+
+| Package | Version |
+|---------|---------|
+| `rapis` | `0.0.4` |
+| `litestar` | `2.21.1` |
+| `fastapi` | `0.136.1` |
+| `emmett` | `2.8.1` |
+| `msgspec` | `0.21.1` |
+| `pydantic` | `2.13.4` |
 
 #### Scenario `plain`
 
 | Framework | RPS | avg ms | p50 ms | p99 ms |
 |-----------|-----|--------|--------|--------|
-| rapis | 187254.03 | 0.2128 | 0.2104 | 0.3202 |
-| emmett | 134486.73 | 0.2965 | 0.2943 | 0.3837 |
-| litestar | 72182.64 | 0.5535 | 0.5493 | 0.6621 |
-| fastapi async | 53855.05 | 0.7421 | 0.7408 | 0.8511 |
-| fastapi sync | 10873.86 | 3.6781 | 3.5469 | 9.3178 |
+| rapis | 197772.07 | 0.3226 | 0.3177 | 0.4695 |
+| emmett | 147205.28 | 0.4338 | 0.4304 | 0.549 |
+| litestar | 73123.67 | 0.8745 | 0.8665 | 1.0514 |
+| fastapi async | 53945.31 | 1.1856 | 1.183 | 1.3564 |
+| fastapi sync | 10156.66 | 6.3012 | 5.9608 | 12.6357 |
 
 #### Scenario `validation`
 
 | Framework | RPS | avg ms | p50 ms | p99 ms |
 |-----------|-----|--------|--------|--------|
-| rapis | 181700.05 | 0.2192 | 0.2167 | 0.3275 |
-| emmett | 56570.04 | 0.7063 | 0.6882 | 0.8163 |
-| litestar | 29265.35 | 1.3661 | 1.3287 | 1.6077 |
-| fastapi async | 25143.7 | 1.5902 | 1.491 | 6.6187 |
-| fastapi sync | 9103.64 | 4.3935 | 4.2139 | 10.1363 |
+| rapis | 194014.5 | 0.3288 | 0.3245 | 0.474 |
+| emmett | 57531.01 | 1.1117 | 1.0758 | 1.32 |
+| litestar | 28863.96 | 2.2165 | 2.1061 | 8.7718 |
+| fastapi async | 24527.25 | 2.6086 | 2.3411 | 8.8407 |
+| fastapi sync | 8963.03 | 7.1418 | 6.7808 | 13.796 |
 
 #### Scenario `static routing`
 
 | Framework | RPS | avg ms | p50 ms | p99 ms |
 |-----------|-----|--------|--------|--------|
-| rapis | 182326.84 | 0.2185 | 0.2165 | 0.3209 |
-| emmett | 130307.55 | 0.306 | 0.3034 | 0.3994 |
-| litestar | 61694.29 | 0.6476 | 0.6341 | 0.8968 |
-| fastapi async | 7884.54 | 5.0729 | 4.9351 | 11.0783 |
-| fastapi sync | 7499.46 | 5.3332 | 5.2072 | 11.0456 |
-
-### Throughput — scenario plain
-
-```mermaid
-xychart-beta
-    title "Throughput — scenario plain"
-    x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "requests/sec" 0 --> 209725
-    bar [187254.03, 134486.73, 72182.64, 53855.05, 10873.86]
-```
-
-
-### Throughput validation
-
-```mermaid
-xychart-beta
-    title "Throughput validation"
-    x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "requests/sec" 0 --> 203505
-    bar [181700.05, 56570.04, 29265.35, 25143.7, 9103.64]
-```
-
-
-### Throughput static routing (high - better)
-
-```mermaid
-xychart-beta
-    title "Throughput static routing (high - better)"
-    x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "requests/sec" 0 --> 204207
-    bar [182326.84, 130307.55, 61694.29, 7884.54, 7499.46]
-```
-
-
-### Latency p50 — scenario plain (lower - better)
-
-```mermaid
-xychart-beta
-    title "Latency p50 — scenario plain (lower - better)"
-    x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "ms" 0 --> 4.7883
-    bar [0.21, 0.29, 0.55, 0.74, 3.55]
-```
-
-
-### Latency p50 validation (lower - better)
-
-```mermaid
-xychart-beta
-    title "Latency p50 validation (lower - better)"
-    x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "ms" 0 --> 5.6888
-    bar [0.22, 0.69, 1.33, 1.49, 4.21]
-```
-
-
-### Latency p50 static routing (lower - better)
-
-```mermaid
-xychart-beta
-    title "Latency p50 static routing (lower - better)"
-    x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "ms" 0 --> 7.0297
-    bar [0.22, 0.3, 0.63, 4.94, 5.21]
-```
+| rapis | 190539.11 | 0.335 | 0.3257 | 0.556 |
+| emmett | 141528.59 | 0.4512 | 0.4477 | 0.572 |
+| litestar | 63728.0 | 1.0036 | 0.9977 | 1.1599 |
+| fastapi async | 7543.79 | 8.4852 | 8.164 | 15.5986 |
+| fastapi sync | 7662.54 | 8.3532 | 8.1199 | 14.5069 |
 
 <!-- BENCHMARK_AUTO_END -->
 ---
@@ -155,5 +99,5 @@ xychart-beta
 |------|------|
 | `benchmarks/apps/` | Minimal apps per framework (shared routes). |
 | `benchmarks/run_benchmarks.py` | Starts Granian + runs **oha**, writes `benchmarks/results.json`. |
-| `benchmarks/render_readme.py` | Regenerates Mermaid charts + tables inside this README. |
+| `benchmarks/render_readme.py` | Regenerates README tables from `benchmarks/results.json`. |
 | `benchmarks/config.py` | Tunables via environment variables. |

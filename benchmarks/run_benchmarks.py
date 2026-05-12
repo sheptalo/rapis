@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 import shutil
 import signal
 import subprocess
@@ -8,6 +9,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from importlib.metadata import PackageNotFoundError, version as dist_version
 from pathlib import Path
 from typing import Any
 
@@ -225,7 +227,14 @@ def bench_one(fw: dict[str, str], scenario: dict[str, Any]) -> dict[str, Any]:
         shutil.rmtree(log_dir, ignore_errors=True)
 
 
-def versions_meta() -> dict[str, str]:
+def _pkg_ver(name: str) -> str:
+    try:
+        return dist_version(name)
+    except PackageNotFoundError:
+        return "(not installed)"
+
+
+def versions_meta() -> dict[str, Any]:
     gv = subprocess.run(
         [GRANIAN_EXE, "--version"],
         capture_output=True,
@@ -238,9 +247,20 @@ def versions_meta() -> dict[str, str]:
         text=True,
         check=False,
     )
+    granian_line = (gv.stdout or gv.stderr).strip()
     return {
-        "granian": (gv.stdout or gv.stderr).strip(),
+        "python_version": platform.python_version(),
+        "granian_version": granian_line,
+        "granian": granian_line,
         "oha": (ov.stdout or ov.stderr).strip(),
+        "library_versions": {
+            "rapis": _pkg_ver("rapis"),
+            "litestar": _pkg_ver("litestar"),
+            "fastapi": _pkg_ver("fastapi"),
+            "emmett": _pkg_ver("emmett"),
+            "msgspec": _pkg_ver("msgspec"),
+            "pydantic": _pkg_ver("pydantic"),
+        },
     }
 
 
@@ -253,7 +273,7 @@ def main() -> None:
             "routing_target_index": TARGET_ROUTE_INDEX,
             "route_count": int(os.environ.get("BENCH_ROUTE_COUNT", "256")),
             "interfaces_note": (
-                "rapis & Emmett use Granian RSGI; Litestar & FastAPI use Granian ASGI."
+                "rapis & Emmett: Granian RSGI; Litestar & FastAPI: Granian ASGI."
             ),
         },
         "runs": [],

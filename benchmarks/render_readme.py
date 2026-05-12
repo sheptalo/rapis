@@ -8,6 +8,16 @@ MARK_START = "<!-- BENCHMARK_AUTO_START -->"
 MARK_END = "<!-- BENCHMARK_AUTO_END -->"
 
 FRAME_ORDER = ["rapis", "emmett", "litestar", "fastapi async", "fastapi sync"]
+SCENARIO_ORDER = ["plain", "validation", "static routing"]
+
+LIBRARY_ORDER = [
+    "rapis",
+    "litestar",
+    "fastapi",
+    "emmett",
+    "msgspec",
+    "pydantic",
+]
 
 
 def load_results(path: Path) -> dict:
@@ -16,32 +26,9 @@ def load_results(path: Path) -> dict:
     return json.loads(path.read_text())
 
 
-def chart_block(
-    title: str, y_title: str, labels: list[str], values: list[float]
-) -> str:
-    vmax = max(values + [1e-9])
-    if vmax >= 50:
-        ymax = int(vmax * 1.12) + 1
-    else:
-        ymax = max(1.0, round(vmax * 1.35 + 1e-6, 4))
-    vals = ", ".join(str(round(v, 2)) for v in values)
-    labs = ", ".join(labels)
-    safe_title = title.replace('"', "'")
-    return f"""### {title}
-
-```mermaid
-xychart-beta
-    title "{safe_title}"
-    x-axis [{labs}]
-    y-axis "{y_title}" 0 --> {ymax}
-    bar [{vals}]
-```
-"""
-
-
 def render_tables(by_scenario: dict[str, dict[str, dict]]) -> str:
     lines: list[str] = []
-    for sid in ["plain", "validation", "static routing"]:
+    for sid in SCENARIO_ORDER:
         lines.append(f"#### Scenario `{sid}`")
         lines.append("")
         lines.append(
@@ -54,15 +41,67 @@ def render_tables(by_scenario: dict[str, dict[str, dict]]) -> str:
                 lines.append(f"| {fid} | — | — | — | — |")
                 continue
             if not cell.get("ok"):
-                lines.append(
-                    f"| {fid} | — | — | — | — `{cell.get('error', '')}` |"
-                )
+                msg = cell.get("error", "")[:120]
+                lines.append(f"| {fid} | — | — | — | — ({msg}) |")
                 continue
             lines.append(
                 f"| {fid} | {cell['rps']} | {cell['avg_ms']} | "
                 f"{cell['p50_ms']} | {cell['p99_ms']} |"
             )
         lines.append("")
+    return "\n".join(lines)
+
+
+def render_environment(meta: dict) -> str:
+    lines = [
+        "#### Runtime & load",
+        "",
+        "| Field | Value |",
+        "|-------|-------|",
+    ]
+    if "python_version" in meta:
+        lines.append(f"| Python | `{meta['python_version']}` |")
+    gv = meta.get("granian_version") or meta.get("granian")
+    if gv:
+        lines.append(f"| Granian | `{gv}` |")
+    if "oha" in meta:
+        lines.append(f"| oha | `{meta['oha']}` |")
+    if "duration" in meta:
+        lines.append(f"| Load duration `-z` | `{meta['duration']}` |")
+    if "connections" in meta:
+        lines.append(f"| Connections `-c` | `{meta['connections']}` |")
+    if "route_count" in meta:
+        lines.append(f"| Static routes (`BENCH_ROUTE_COUNT`) | `{meta['route_count']}` |")
+    if "routing_target_index" in meta:
+        lines.append(
+            "| Routing probe URL | `/bench/r/"
+            f"{meta['routing_target_index']}` |"
+        )
+    if "interfaces_note" in meta:
+        lines.append(f"| Interfaces | {meta['interfaces_note']} |")
+    lines.append("")
+
+    libs = meta.get("library_versions") or {}
+    if libs:
+        lines.extend(
+            [
+                "#### Framework & library packages (PyPI)",
+                "",
+                "| Package | Version |",
+                "|---------|---------|",
+            ]
+        )
+        seen: set[str] = set()
+        for name in LIBRARY_ORDER:
+            if name not in libs or name in seen:
+                continue
+            seen.add(name)
+            lines.append(f"| `{name}` | `{libs[name]}` |")
+        for name, ver in sorted(libs.items()):
+            if name not in seen:
+                lines.append(f"| `{name}` | `{ver}` |")
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -80,69 +119,10 @@ def main() -> None:
 
     sections: list[str] = []
 
-    sections.append("_Latest automated numbers (see workflow «Benchmarks»)._")
+    sections.append("_Latest automated numbers (workflow «Benchmarks»)._")
     sections.append("")
-    sections.append("#### Environment snapshot")
-    sections.append("")
-    sections.append("| Setting | Value |")
-    sections.append("|---------|-------|")
-    for key in ("granian", "oha", "duration", "connections", "route_count"):
-        if key in meta:
-            sections.append(f"| `{key}` | {meta[key]} |")  # noqa: PERF401
-    if "routing_target_index" in meta:
-        sections.append(
-            f"| routing probe path | `/bench/r/{meta['routing_target_index']}` |"  # noqa: E501
-        )
-    if "interfaces_note" in meta:
-        sections.append(f"| interfaces | {meta['interfaces_note']} |")
-    sections.append("")
+    sections.append(render_environment(meta))
     sections.append(render_tables(by_scenario))
-
-    chart_specs = [
-        ("plain", "Throughput — scenario plain", "rps", "requests/sec"),
-        (
-            "validation",
-            "Throughput validation",
-            "rps",
-            "requests/sec",
-        ),
-        (
-            "static routing",
-            "Throughput static routing (high - better)",
-            "rps",
-            "requests/sec",
-        ),
-        (
-            "plain",
-            "Latency p50 — scenario plain (lower - better)",
-            "p50_ms",
-            "ms",
-        ),
-        (
-            "validation",
-            "Latency p50 validation (lower - better)",
-            "p50_ms",
-            "ms",
-        ),
-        (
-            "static routing",
-            "Latency p50 static routing (lower - better)",
-            "p50_ms",
-            "ms",
-        ),
-    ]
-
-    for sid, title, metric_key, y_label in chart_specs:
-        labels = FRAME_ORDER.copy()
-        values: list[float] = []
-        for fid in FRAME_ORDER:
-            row = by_scenario[sid].get(fid)
-            if row and row.get("ok"):
-                values.append(float(row[metric_key]))
-            else:
-                values.append(0.0)
-        sections.append(chart_block(title, y_label, labels, values))
-        sections.append("")
 
     auto_body = "\n".join(sections).strip() + "\n"
 
