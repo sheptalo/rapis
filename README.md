@@ -122,6 +122,7 @@ see [wiki](https://github.com/sheptalo/rapis/wiki)
 - [X] typing support in TY
 - [X] some examples
 - [ ] Problem: how to authenticate users?
+- [ ] Problem: how to send files?
 - [ ] https://jcristharif.com/msgspec/perf-tips.html
 
 ## CONTRIBUTING
