@@ -55,31 +55,31 @@ _Latest automated numbers (see workflow «Benchmarks»)._
 
 | Framework | RPS | avg ms | p50 ms | p99 ms |
 |-----------|-----|--------|--------|--------|
-| rapis | 187254.03 | 0.2128 | 0.2104 | 0.3202 |
-| emmett | 134486.73 | 0.2965 | 0.2943 | 0.3837 |
-| litestar | 72182.64 | 0.5535 | 0.5493 | 0.6621 |
-| fastapi async | 53855.05 | 0.7421 | 0.7408 | 0.8511 |
-| fastapi sync | 10873.86 | 3.6781 | 3.5469 | 9.3178 |
+| rapis | 49852.05 | 0.8005 | 0.7386 | 2.069 |
+| emmett | 24155.4 | 1.6538 | 1.5898 | 2.0797 |
+| litestar | 10177.36 | 3.9277 | 4.2015 | 4.573 |
+| fastapi async | 8671.87 | 4.61 | 4.628 | 5.8753 |
+| fastapi sync | 2240.64 | 17.8372 | 16.9937 | 41.3329 |
 
 #### Scenario `validation`
 
 | Framework | RPS | avg ms | p50 ms | p99 ms |
 |-----------|-----|--------|--------|--------|
-| rapis | 181700.05 | 0.2192 | 0.2167 | 0.3275 |
-| emmett | 56570.04 | 0.7063 | 0.6882 | 0.8163 |
-| litestar | 29265.35 | 1.3661 | 1.3287 | 1.6077 |
-| fastapi async | 25143.7 | 1.5902 | 1.491 | 6.6187 |
-| fastapi sync | 9103.64 | 4.3935 | 4.2139 | 10.1363 |
+| rapis | 48153.87 | 0.8287 | 0.7523 | 2.1721 |
+| emmett | 9673.29 | 4.1327 | 4.0906 | 4.8734 |
+| litestar | 5375.83 | 7.4391 | 7.2371 | 10.0304 |
+| fastapi async | 5272.19 | 7.585 | 7.3112 | 25.1194 |
+| fastapi sync | 2181.77 | 18.3414 | 17.7312 | 38.4545 |
 
 #### Scenario `static routing`
 
 | Framework | RPS | avg ms | p50 ms | p99 ms |
 |-----------|-----|--------|--------|--------|
-| rapis | 182326.84 | 0.2185 | 0.2165 | 0.3209 |
-| emmett | 130307.55 | 0.306 | 0.3034 | 0.3994 |
-| litestar | 61694.29 | 0.6476 | 0.6341 | 0.8968 |
-| fastapi async | 7884.54 | 5.0729 | 4.9351 | 11.0783 |
-| fastapi sync | 7499.46 | 5.3332 | 5.2072 | 11.0456 |
+| rapis | 50190.56 | 0.7951 | 0.7305 | 2.1422 |
+| emmett | 25883.43 | 1.5432 | 1.4839 | 1.9683 |
+| litestar | 8999.82 | 4.442 | 4.6417 | 5.2884 |
+| fastapi async | 1820.45 | 21.9861 | 21.1515 | 45.2601 |
+| fastapi sync | 1931.43 | 20.7067 | 20.0968 | 36.5863 |
 
 ### Throughput — scenario plain
 
@@ -87,8 +87,8 @@ _Latest automated numbers (see workflow «Benchmarks»)._
 xychart-beta
     title "Throughput — scenario plain"
     x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "requests/sec" 0 --> 209725
-    bar [187254.03, 134486.73, 72182.64, 53855.05, 10873.86]
+    y-axis "requests/sec" 0 --> 55835
+    bar [49852.05, 24155.4, 10177.36, 8671.87, 2240.64]
 ```
 
 
@@ -98,8 +98,8 @@ xychart-beta
 xychart-beta
     title "Throughput validation"
     x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "requests/sec" 0 --> 203505
-    bar [181700.05, 56570.04, 29265.35, 25143.7, 9103.64]
+    y-axis "requests/sec" 0 --> 53933
+    bar [48153.87, 9673.29, 5375.83, 5272.19, 2181.77]
 ```
 
 
@@ -109,8 +109,8 @@ xychart-beta
 xychart-beta
     title "Throughput static routing (high - better)"
     x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "requests/sec" 0 --> 204207
-    bar [182326.84, 130307.55, 61694.29, 7884.54, 7499.46]
+    y-axis "requests/sec" 0 --> 56214
+    bar [50190.56, 25883.43, 8999.82, 1820.45, 1931.43]
 ```
 
 
@@ -120,8 +120,8 @@ xychart-beta
 xychart-beta
     title "Latency p50 — scenario plain (lower - better)"
     x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "ms" 0 --> 4.7883
-    bar [0.21, 0.29, 0.55, 0.74, 3.55]
+    y-axis "ms" 0 --> 22.9415
+    bar [0.74, 1.59, 4.2, 4.63, 16.99]
 ```
 
 
@@ -131,8 +131,8 @@ xychart-beta
 xychart-beta
     title "Latency p50 validation (lower - better)"
     x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "ms" 0 --> 5.6888
-    bar [0.22, 0.69, 1.33, 1.49, 4.21]
+    y-axis "ms" 0 --> 23.9371
+    bar [0.75, 4.09, 7.24, 7.31, 17.73]
 ```
 
 
@@ -142,8 +142,8 @@ xychart-beta
 xychart-beta
     title "Latency p50 static routing (lower - better)"
     x-axis [rapis, emmett, litestar, fastapi async, fastapi sync]
-    y-axis "ms" 0 --> 7.0297
-    bar [0.22, 0.3, 0.63, 4.94, 5.21]
+    y-axis "ms" 0 --> 28.5545
+    bar [0.73, 1.48, 4.64, 21.15, 20.1]
 ```
 
 <!-- BENCHMARK_AUTO_END -->
