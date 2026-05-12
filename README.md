@@ -22,9 +22,7 @@ Key features:
 - [granian](https://github.com/emmett-framework/granian): A Rust HTTP server for Python applications (soon will be optional)
 - [msgspec](https://github.com/jcrist/msgspec): A fast serialization and validation library
 
-
 ## Installation
-
 
 ```bash
 pip install rapis
@@ -97,13 +95,15 @@ app = WebApp()
 app.include_router(router)
 ```
 
-see more in [examples](examples)
+more [examples](examples)
 
 ## Performance
 
-section about speed of framework (WIP)
+see [benchmarks](benchmarks)
 
-## DOCS will be implemented soon
+## Docs
+
+see [wiki](https://github.com/sheptalo/rapis/wiki)
 
 ## TODO
 
