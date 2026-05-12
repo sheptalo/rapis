@@ -10,6 +10,31 @@ from rapis.entities.handler import Handler
 from rapis.types import HttpProtocol, Query, Scope
 
 
+def extract_path_param_types(
+    call: Callable[..., Any],
+    path_fields: frozenset[str],
+) -> dict[str, type]:
+    if not path_fields:
+        return {}
+    sig = inspect.signature(call)
+    hints = get_type_hints(call, include_extras=True)
+    mapping: dict[str, type] = {}
+    for name in path_fields:
+        param = sig.parameters.get(name)
+        if param is None:
+            msg = (
+                f"path includes parameter {name!r} but callable "
+                f"{getattr(call, '__qualname__', repr(call))!r} "
+                "has no matching parameter"
+            )
+            raise TypeError(msg)
+        ann = hints.get(name, param.annotation)
+        if ann is inspect.Parameter.empty:
+            ann = str
+        mapping[name] = ann
+    return mapping
+
+
 def extract_bindings(
     call: Callable[..., Any],
 ) -> list[ParamBinding]:

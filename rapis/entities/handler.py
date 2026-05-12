@@ -1,18 +1,26 @@
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from http import HTTPStatus
+from re import Pattern
 
 
+@dataclass
 class Handler:
-    def __init__(
+    call: Callable
+    bindings: list
+    status: HTTPStatus
+    path_pattern: Pattern[str] | None = None
+    path_fields: frozenset[str] = field(default_factory=frozenset)
+    path_types: dict[str, type] = field(default_factory=dict)
+    is_request_response: bool = False
+
+    def set_path_matching(
         self,
-        call: Callable,
-        bindings: list,
-        status: HTTPStatus,
         *,
-        is_request_response: bool = False,
+        pattern: Pattern[str] | None,
+        fields: frozenset[str],
+        types: dict[str, type],
     ) -> None:
-        self.call = call
-        self.status = status
-        self.path_fields: frozenset[str] = frozenset()
-        self.bindings = bindings
-        self.is_request_response = is_request_response
+        self.path_pattern = pattern
+        self.path_fields = fields
+        self.path_types = types

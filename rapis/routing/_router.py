@@ -19,7 +19,8 @@ class AppRouter:
         if not middlewares:
             middlewares = []
         self.prefix = prefix
-        self.routes: list[Route] = []
+        self.dynamic_routes: list[Route] = []
+        self.static_routes: dict[str, Route] = {}
         self.exception_handlers = []
         self.middlewares = middlewares
         self.route_class = route_class
@@ -33,15 +34,17 @@ class AppRouter:
         status: HTTPStatus = HTTPStatus.OK,
     ) -> Callable:
         def deco(func: Callable) -> Callable:
-            self.routes.append(
-                self.route_class(
-                    path=self.prefix + url,
-                    endpoint=func,
-                    status=status,
-                    methods=methods,
-                    middleware=self.middlewares,
-                )
+            route = self.route_class(
+                path=self.prefix + url,
+                endpoint=func,
+                status=status,
+                methods=methods,
+                middleware=self.middlewares,
             )
+            if route.static():
+                self.static_routes[url] = route
+            else:
+                self.dynamic_routes.append(route)
             return func
 
         return deco
@@ -86,7 +89,11 @@ class AppRouter:
         return self.route(url, methods=[HTTPMethod.TRACE], status=status)
 
     async def __call__(self, scope: Scope, proto: HttpProtocol) -> Any:
-        for route in self.routes:
+        static_route = self.static_routes.get(scope.path)
+        if static_route:
+            await static_route(scope, proto)
+            return
+        for route in self.dynamic_routes:
             if route.matches(scope):
                 await route(scope, proto)
                 break

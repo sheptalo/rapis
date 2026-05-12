@@ -58,9 +58,12 @@ class WebApp:
         await self.middleware_stack(scope, proto)
 
     def include_router(self, router: AppRouter) -> None:
-        for route in router.routes:
+        for path, route in router.static_routes.items():
             route.path = self.router.prefix + route.path
-            self.router.routes.append(route)
+            self.router.static_routes[self.router.prefix + path] = route
+        for route in router.dynamic_routes:
+            route.path = self.router.prefix + route.path
+            self.router.dynamic_routes.append(route)
 
     def add_exception_handler[T: Exception](
         self, exception: type[T], handler: ExceptionHandler[T]
