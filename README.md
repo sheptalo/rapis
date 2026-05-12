@@ -109,13 +109,13 @@ see [wiki](https://github.com/sheptalo/rapis/wiki)
 
 - [X] Exception handling
 - [X] Built-in exception handlers (validation, json parsing)
-- [ ] Benchmarks section
+- [X] Benchmarks section
 - [ ] Request/Response Work model
 - [ ] Docs
 - [ ] More availabilities to expand logic (custom routes and other)
 - [X] better Query params handle
-- [ ] change routing from linear to something else (hash maps for static paths, ?? for dynamic paths)
-- [ ] path patterns logic
+- [X] change routing from linear to something else (hash maps for static paths, ?? for dynamic paths)
+- [X] path patterns logic
 - [X] review Middleware logic
 - [ ] websocket support(maybe)
 - [ ] coverage
