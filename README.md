@@ -7,7 +7,7 @@
 
 _this framework was inspired by FastAPI so syntax may be identical_
 
-### ! WARNING: Framework in early development, it is NOT READY for production
+### ⚠️ WARNING: Framework in early development, it is NOT READY for production
 
 Key features:
 
@@ -19,13 +19,16 @@ Key features:
 
 ## Requirements
 
-- [granian](https://github.com/emmett-framework/granian): A Rust HTTP server for Python applications (soon will be optional)
 - [msgspec](https://github.com/jcrist/msgspec): A fast serialization and validation library
 
 ## Installation
 
 ```bash
 pip install rapis
+# install any rsgi compatible web-server
+pip install granian
+# or simply
+pip install rapis[standard] # includes granian in requirements
 ```
 
 ## Example
@@ -123,6 +126,7 @@ see [wiki](https://github.com/sheptalo/rapis/wiki)
 - [X] some examples
 - [ ] Problem: how to authenticate users?
 - [ ] Problem: how to send files?
+- [ ] Problem: how to work with cookies?
 - [ ] https://jcristharif.com/msgspec/perf-tips.html
 
 ## CONTRIBUTING

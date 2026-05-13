@@ -9,7 +9,6 @@ description = "Minimalistic web framework"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "granian>=2.7.4",
     "msgspec>=0.21.1",
 ]
 license = {file = "LICENSE"}
@@ -32,8 +31,15 @@ classifiers = [
 Documentation = "https://github.com/sheptalo/rapis/wiki"
 Source = "https://github.com/sheptalo/rapis"
 
+[project.optional-dependencies]
+di = ["dishka>=1.10.1"]
+full = ["dishka>=1.10.1","granian>=2.7.4"]
+standard = ["granian>=2.7.4"]
+
 [dependency-groups]
 dev = [
+    "coverage>=7.14.0",
+    "dishka>=1.10.1",
     "pre-commit>=4.6.0",
     "ruff>=0.15.12",
     "ty>=0.0.34",

@@ -3,7 +3,7 @@ from contextvars import ContextVar
 from http import HTTPMethod, HTTPStatus
 from typing import Any
 
-from dishka import AsyncContainer
+from dishka import AsyncContainer, Provider, from_context
 from dishka.entities.scope import Scope as DishkaScope
 from dishka.integrations.base import wrap_injection
 
@@ -12,10 +12,29 @@ from rapis.entities.middleware import Middleware
 from rapis.routing import Route
 from rapis.types import HttpProtocol, RSGIApp, Scope
 
+__all__ = [
+    "DishkaMiddleware",
+    "DishkaRoute",
+    "RapisProvider",
+    "default_request_context",
+    "get_request_container",
+]
+
 _request_async_container: ContextVar[AsyncContainer | None] = ContextVar(
     "rapis_dishka_request_async_container",
     default=None,
 )
+
+
+def default_request_context(
+    scope: Scope, proto: HttpProtocol
+) -> dict[Any, Any]:
+    return {Scope: scope, HttpProtocol: proto}
+
+
+class RapisProvider(Provider):
+    rsgi_scope = from_context(Scope, scope=DishkaScope.REQUEST)
+    http_protocol = from_context(HttpProtocol, scope=DishkaScope.REQUEST)
 
 
 def get_request_container() -> AsyncContainer:
@@ -72,13 +91,15 @@ class DishkaMiddleware:
         self.app = app
         self.container = container
         self.di_scope = di_scope
-        self.context_factory = context_factory or (lambda _s, _p: {})
+        self.context_factory = context_factory
 
     async def __call__(self, scope: Scope, proto: HttpProtocol) -> None:
         if scope.proto != "http":
             await self.app(scope, proto)
             return
-        context = self.context_factory(scope, proto)
+        context = default_request_context(scope, proto)
+        if self.context_factory is not None:
+            context.update(self.context_factory(scope, proto))
         async with self.container(
             context, scope=self.di_scope
         ) as request_container:

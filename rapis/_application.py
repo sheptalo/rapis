@@ -1,7 +1,7 @@
 from functools import reduce
 
 from rapis.entities.middleware import Middleware
-from rapis.middlewares._exception import (
+from rapis.middlewares import (
     ExceptionMiddleware,
     ServerExceptionMiddleware,
 )
