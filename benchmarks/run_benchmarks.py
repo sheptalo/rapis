@@ -35,6 +35,11 @@ FRAMEWORKS: list[dict[str, str]] = [
         "interface": "rsgi",
     },
     {
+        "id": "sanic",
+        "target": "benchmarks.apps.sanic_bench:app",
+        "interface": "sanic",
+    },
+    {
         "id": "litestar",
         "target": "benchmarks.apps.litestar_bench:app",
         "interface": "asgi",
@@ -75,6 +80,27 @@ SCENARIOS: list[dict[str, Any]] = [
         "id": "static routing",
         "method": "GET",
         "path": f"/bench/r/{TARGET_ROUTE_INDEX}",
+        "body": None,
+        "content_type": None,
+    },
+    {
+        "id": "dynamic routing",
+        "method": "GET",
+        "path": f"/bench/d/{TARGET_ROUTE_INDEX}",
+        "body": None,
+        "content_type": None,
+    },
+    {
+        "id": "large response",
+        "method": "GET",
+        "path": "/bench/large",
+        "body": None,
+        "content_type": None,
+    },
+    {
+        "id": "query params",
+        "method": "GET",
+        "path": f"/bench/query?skip={TARGET_ROUTE_INDEX}&limit=10",
         "body": None,
         "content_type": None,
     },
@@ -168,32 +194,55 @@ def run_oha(
 def bench_one(fw: dict[str, str], scenario: dict[str, Any]) -> dict[str, Any]:
     host = "127.0.0.1"
     port = pick_port()
-    cmd = [
-        GRANIAN_EXE,
-        fw["target"],
-        "--interface",
-        fw["interface"],
-        "--host",
-        host,
-        "--port",
-        str(port),
-        *GRANIAN_EXTRA_ARGS,
-    ]
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT)
     env.pop("NO_COLOR", None)
 
     log_dir = Path(tempfile.mkdtemp(prefix="granian_bench_"))
-    granian_stderr = log_dir / "granian.stderr.log"
 
-    stderr_fp = granian_stderr.open("w", encoding="utf-8", errors="replace")
-    proc = subprocess.Popen(
-        cmd,
-        cwd=REPO_ROOT,
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=stderr_fp,
-    )
+    if fw["interface"] == "sanic":
+        sanic_stderr = log_dir / "sanic.stderr.log"
+        stderr_fp = sanic_stderr.open("w", encoding="utf-8", errors="replace")
+        cmd = [
+            sys.executable,
+            "-m",
+            "sanic",
+            fw["target"].split(":")[0],
+            "--host",
+            host,
+            "--port",
+            str(port),
+            "-w",
+            "1",
+        ]
+        proc = subprocess.Popen(
+            cmd,
+            cwd=REPO_ROOT,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=stderr_fp,
+        )
+    else:
+        cmd = [
+            GRANIAN_EXE,
+            fw["target"],
+            "--interface",
+            fw["interface"],
+            "--host",
+            host,
+            "--port",
+            str(port),
+            *GRANIAN_EXTRA_ARGS,
+        ]
+        granian_stderr = log_dir / "granian.stderr.log"
+        stderr_fp = granian_stderr.open("w", encoding="utf-8", errors="replace")
+        proc = subprocess.Popen(
+            cmd,
+            cwd=REPO_ROOT,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=stderr_fp,
+        )
     path = scenario["path"]
     url = f"http://{host}:{port}{path}"
     try:
@@ -208,14 +257,14 @@ def bench_one(fw: dict[str, str], scenario: dict[str, Any]) -> dict[str, Any]:
     except Exception as exc:
         tail = ""
         try:
-            tail = granian_stderr.read_text(
-                encoding="utf-8", errors="replace"
-            )[-6000:]
+            stderr_fp.flush()
+            stderr_fp.seek(0)
+            tail = stderr_fp.read()[-6000:]
         except OSError:
             tail = ""
         err = repr(exc)
         if tail.strip():
-            err = f"{err}\n--- granian stderr (tail) ---\n{tail}"
+            err = f"{err}\n--- stderr (tail) ---\n{tail}"
         return {"ok": False, "error": err}
     finally:
         proc.send_signal(signal.SIGTERM)
@@ -255,6 +304,7 @@ def versions_meta() -> dict[str, Any]:
         "oha": (ov.stdout or ov.stderr).strip(),
         "library_versions": {
             "rapis": _pkg_ver("rapis"),
+            "sanic": _pkg_ver("sanic"),
             "litestar": _pkg_ver("litestar"),
             "fastapi": _pkg_ver("fastapi"),
             "emmett": _pkg_ver("emmett"),
@@ -273,7 +323,7 @@ def main() -> None:
             "routing_target_index": TARGET_ROUTE_INDEX,
             "route_count": int(os.environ.get("BENCH_ROUTE_COUNT", "256")),
             "interfaces_note": (
-                "rapis & Emmett: Granian RSGI; Litestar & FastAPI: Granian ASGI."
+                "rapis & Emmett: Granian RSGI; Litestar & FastAPI: Granian ASGI; Sanic: native server."
             ),
         },
         "runs": [],

@@ -1,5 +1,5 @@
 from benchmarks.config import ROUTE_COUNT
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Query
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -18,10 +18,19 @@ def plain():
 def validate(p: Payload):
     return p
 
+@bench.get("/large")
+def large():
+    return {"data": list(range(1000))}
+
+@bench.get("/query")
+def query(skip: int = Query(0), limit: int = Query(10)):
+    return {"skip": skip, "limit": limit}
+
 def create_route_handler(idx: int):
     def route_many():
         return {"i": idx}
     return route_many
+
 
 for _i in range(ROUTE_COUNT):
     handler = create_route_handler(_i)
@@ -31,5 +40,10 @@ for _i in range(ROUTE_COUNT):
         methods=["GET"],
         name=f"bench_route_{_i}"
     )
+
+@bench.get("/d/{idx}")
+def route_dynamic(idx: int) -> dict:
+    return {"i": idx}
+
 
 app.include_router(bench)

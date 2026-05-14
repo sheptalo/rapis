@@ -1,7 +1,7 @@
 from msgspec import Struct
 
 from benchmarks.config import ROUTE_COUNT
-from rapis import AppRouter, WebApp
+from rapis import AppRouter, WebApp, Query
 
 router = AppRouter(prefix="/bench")
 
@@ -21,6 +21,16 @@ async def validate(body: Payload) -> Payload:
     return body
 
 
+@router.get("/large")
+async def large() -> dict:
+    return {"data": [i for i in range(1000)]}
+
+
+@router.get("/query")
+async def query(skip: Query[int] = 0, limit: Query[int] = 10) -> dict:
+    return {"skip": skip, "limit": limit}
+
+
 for _i in range(ROUTE_COUNT):
 
     def _register(idx: int = _i):
@@ -31,6 +41,10 @@ for _i in range(ROUTE_COUNT):
         route_many.__name__ = f"bench_route_{idx}"
 
     _register()
+
+@router.get("/d/{idx}")
+async def route_dynamic(idx: int) -> dict:
+    return {"i": idx}
 
 
 app = WebApp(reraise_exception=False)

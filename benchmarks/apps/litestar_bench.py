@@ -1,6 +1,7 @@
 from litestar import Litestar
 from litestar.handlers.http_handlers import get, post
 from pydantic import BaseModel
+from typing import Optional
 
 from benchmarks.config import ROUTE_COUNT
 
@@ -20,7 +21,22 @@ async def validate(data: Payload) -> Payload:
     return data
 
 
-handlers: list = [plain, validate]
+@get("/bench/large")
+async def large() -> dict:
+    return {"data": list(range(1000))}
+
+
+@get("/bench/query")
+async def query(skip: int = 0, limit: int = 10) -> dict:
+    return {"skip": skip, "limit": limit}
+
+
+@get("/bench/d/{idx:int}")
+async def route_dynamic(idx: int) -> dict:
+    return {"i": idx}
+
+
+handlers: list = [plain, validate, large, query, route_dynamic]
 
 for _i in range(ROUTE_COUNT):
 
