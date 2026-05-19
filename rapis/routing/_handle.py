@@ -3,6 +3,7 @@ from functools import wraps
 import msgspec
 
 from rapis.entities.handler import Handler
+from rapis.entities.response import Response
 from rapis.exceptions import ValidationError
 from rapis.services.bindings import parse_bindings
 from rapis.services.path_pattern import path_params
@@ -19,6 +20,9 @@ def route(handler: Handler) -> RSGIApp:
         if parsed_errors:
             raise ValidationError(errors=parsed_errors)
         result = await handler.call(**path_kwargs, **parsed_kwargs)
+        if isinstance(result, Response):
+            result(scope, proto)
+            return
         if isinstance(result, msgspec.Struct | dict):
             payload = msgspec.json.encode(result)
         elif isinstance(result, str):

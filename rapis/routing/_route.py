@@ -3,6 +3,7 @@ from http import HTTPMethod, HTTPStatus
 
 from rapis.entities.handler import Handler
 from rapis.entities.middleware import Middleware
+from rapis.entities.route import Route
 from rapis.routing._handle import route
 from rapis.services.bindings import (
     extract_bindings,
@@ -15,7 +16,7 @@ from rapis.services.path_pattern import (
 from rapis.types import HttpProtocol, Scope
 
 
-class Route:
+class APIRoute(Route):
     def __init__(
         self,
         path: str,
@@ -24,6 +25,9 @@ class Route:
         *,
         methods: Collection[HTTPMethod] | None = None,
         middleware: Sequence[Middleware] | None = None,
+        description: str | None = "",
+        summary: str | None = "",
+        tags: Sequence[str] | None = None,
     ) -> None:
         self._route_path = normalize_route_path(path)
         self.status = status
@@ -50,13 +54,10 @@ class Route:
         if middleware is not None:
             for cls, args, kwargs in reversed(middleware):
                 self.app = cls(self.app, *args, **kwargs)
-
-        if methods is None:
-            self.methods = ["GET"]
-        else:
-            self.methods = {method.upper() for method in methods}
-            if "GET" in self.methods:
-                self.methods.add("HEAD")
+        self.tags = tags or []
+        self.description = description
+        self.summary = summary
+        self.methods = methods or [HTTPMethod.GET]
 
     async def __call__(self, scope: Scope, proto: HttpProtocol) -> None:
         if self.methods and scope.method not in self.methods:
@@ -88,6 +89,10 @@ class Route:
         if self._handler.path_pattern is None:
             return scope.path == self._route_path
         return self._handler.path_pattern.fullmatch(scope.path) is not None
+
+    @property
+    def handler(self) -> Handler:
+        return self._handler
 
     def static(self) -> bool:
         return self._handler.path_pattern is None

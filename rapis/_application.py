@@ -1,9 +1,17 @@
 from functools import reduce
+from typing import Literal
+
+import msgspec
 
 from rapis.entities.middleware import Middleware
 from rapis.middlewares import (
     ExceptionMiddleware,
     ServerExceptionMiddleware,
+)
+from rapis.openapi import (
+    OpenAPIConfig,
+    attach_openapi_routes,
+    build_openapi_spec,
 )
 from rapis.routing import AppRouter
 from rapis.types import ExceptionHandler, HttpProtocol, RSGIApp, Scope
@@ -17,6 +25,7 @@ class WebApp:
         middlewares: list[Middleware] | None = None,
         router_class: type[AppRouter] = AppRouter,
         reraise_exception: bool = True,
+        openapi: OpenAPIConfig | Literal[False] = OpenAPIConfig(),
     ) -> None:
         self.reraise_exception = reraise_exception
         if not middlewares:
@@ -28,8 +37,17 @@ class WebApp:
         self.router = router_class(prefix=root_path)
         self.root_path = root_path
         self.middleware_stack: RSGIApp | None = None
+        self._openapi_config = openapi or None
 
     def build_middleware_stack(self) -> RSGIApp:
+        if self._openapi_config:
+            spec = build_openapi_spec(self.router, self._openapi_config)
+            attach_openapi_routes(
+                router=self.router,
+                schema_bytes=msgspec.json.encode(spec),
+                config=self._openapi_config,
+            )
+
         exception_handlers = dict(self.exception_handlers)
         return reduce(
             lambda app, mw: mw.cls(app, *mw.args, **mw.kwargs),
