@@ -18,6 +18,10 @@ class Response:
         proto.response_bytes(self.status, self.headers, self._parse_body())
 
     def _parse_body(self) -> bytes:
+        if isinstance(self.body, (bytes, bytearray)):
+            return bytes(self.body)
+        if isinstance(self.body, str):
+            return self.body.encode()
         return str(self.body).encode()
 
 
