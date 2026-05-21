@@ -24,9 +24,10 @@ class Middleware[**P]:
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
-        args_strings = [f"{value!r}" for value in self.args]
+        args_strings = [f"{value!r}" for value in iter(self.args)]  # type: ignore
         option_strings = [
-            f"{key}={value!r}" for key, value in self.kwargs.items()
+            f"{key}={value!r}"
+            for key, value in self.kwargs.items()  # type: ignore
         ]
         name = getattr(self.cls, "__name__", "")
         args_repr = ", ".join([name] + args_strings + option_strings)

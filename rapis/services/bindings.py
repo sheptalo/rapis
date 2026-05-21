@@ -73,7 +73,7 @@ async def parse_bindings(
     handler: Handler, scope: Scope, proto: HttpProtocol
 ) -> tuple[dict, dict]:
     kwargs: dict[str, Any] = {}
-    errors = {}
+    errors: dict = {}
     if not handler.bindings:
         return kwargs, errors
     decoded_body = {}
@@ -84,7 +84,7 @@ async def parse_bindings(
         query_dict = dict(parse_qsl(scope.query_string))
 
     for b in handler.bindings:
-        data_source = (
+        data_source: Any = (
             query_dict
             if b.source == ParamBindingSource.query
             else decoded_body

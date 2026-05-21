@@ -1,6 +1,5 @@
 import inspect
 import json
-from collections.abc import Iterator
 from http import HTTPMethod, HTTPStatus
 from typing import Any, get_args, get_origin, get_type_hints
 
@@ -10,15 +9,9 @@ from rapis.entities.bindings import ParamBindingSource
 from rapis.entities.handler import Handler
 from rapis.entities.response import Response
 from rapis.entities.route import Route
+from rapis.entities.router import Router
 from rapis.openapi.config import OpenAPIConfig
-from rapis.routing import AppRouter
-from rapis.services.path_pattern import normalize_route_path
 from rapis.types import Query
-
-
-def _iter_routes(router: AppRouter) -> Iterator[Route]:
-    yield from router.static_routes.values()
-    yield from router.dynamic_routes
 
 
 def _schema_for_type(typ: Any, components: dict[str, Any]) -> dict[str, Any]:
@@ -151,12 +144,12 @@ def _build_operation(
 
 
 def build_openapi_spec(
-    router: AppRouter, config: OpenAPIConfig
+    router: Router, config: OpenAPIConfig
 ) -> dict[str, Any]:
     components: dict[str, Any] = {}
     paths: dict[str, dict[str, Any]] = {}
 
-    for route in _iter_routes(router):
+    for route in router.routes:
         path_key = route.path or "/"
         path_item = paths.setdefault(path_key, {})
         methods = sorted(m for m in route.methods if m != HTTPMethod.OPTIONS)
@@ -209,13 +202,12 @@ def swagger_ui_page(openapi_url: str, page_title: str) -> str:
 
 def attach_openapi_routes(
     *,
-    router: AppRouter,
+    router: Router,
     schema_bytes: bytes,
     config: OpenAPIConfig,
 ) -> None:
-    prefix = router.prefix
-    json_path = normalize_route_path(prefix + config.openapi_path)
-    docs_path = normalize_route_path(prefix + config.docs_path)
+    json_path = config.openapi_path
+    docs_path = config.docs_path
 
     async def serve_openapi_schema() -> Response:
         return Response(
@@ -233,17 +225,21 @@ def attach_openapi_routes(
             [("Content-Type", "text/html; charset=utf-8")],
         )
 
-    router.static_routes[json_path] = router.route_class(
-        path=json_path,
-        endpoint=serve_openapi_schema,
-        status=HTTPStatus.OK,
-        methods=[HTTPMethod.GET],
-        middleware=[],
-    )
-    router.static_routes[docs_path] = router.route_class(
-        path=docs_path,
-        endpoint=serve_swagger_ui,
-        status=HTTPStatus.OK,
-        methods=[HTTPMethod.GET],
-        middleware=[],
+    router.mount(
+        [
+            router.route_class(
+                path=json_path,
+                endpoint=serve_openapi_schema,
+                status=HTTPStatus.OK,
+                methods=[HTTPMethod.GET],
+                middleware=[],
+            ),
+            router.route_class(
+                path=docs_path,
+                endpoint=serve_swagger_ui,
+                status=HTTPStatus.OK,
+                methods=[HTTPMethod.GET],
+                middleware=[],
+            ),
+        ]
     )

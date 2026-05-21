@@ -11,7 +11,6 @@ from rapis.services.bindings import (
 )
 from rapis.services.path_pattern import (
     compile_path_pattern,
-    normalize_route_path,
 )
 from rapis.types import HttpProtocol, Scope
 
@@ -29,7 +28,7 @@ class APIRoute(Route):
         summary: str | None = "",
         tags: Sequence[str] | None = None,
     ) -> None:
-        self._route_path = normalize_route_path(path)
+        self._route_path = path
         self.status = status
         if isinstance(endpoint, Handler):
             self._handler = endpoint
@@ -75,7 +74,7 @@ class APIRoute(Route):
 
     @path.setter
     def path(self, value: str) -> None:
-        self._route_path = normalize_route_path(value)
+        self._route_path = value
         self._refresh_handler_path_matching()
 
     def _refresh_handler_path_matching(self) -> None:

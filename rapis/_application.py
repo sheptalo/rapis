@@ -4,6 +4,7 @@ from typing import Literal
 import msgspec
 
 from rapis.entities.middleware import Middleware
+from rapis.entities.router import Router
 from rapis.middlewares import (
     ExceptionMiddleware,
     ServerExceptionMiddleware,
@@ -23,7 +24,7 @@ class WebApp:
         *,
         root_path: str = "",
         middlewares: list[Middleware] | None = None,
-        router_class: type[AppRouter] = AppRouter,
+        router_class: type[Router] = AppRouter,
         reraise_exception: bool = True,
         openapi: OpenAPIConfig | Literal[False] = OpenAPIConfig(),
     ) -> None:
@@ -35,7 +36,6 @@ class WebApp:
             tuple[type[Exception], ExceptionHandler]
         ] = []
         self.router = router_class(prefix=root_path)
-        self.root_path = root_path
         self.middleware_stack: RSGIApp | None = None
         self._openapi_config = openapi or None
 
@@ -75,13 +75,8 @@ class WebApp:
             self.middleware_stack = self.build_middleware_stack()
         await self.middleware_stack(scope, proto)
 
-    def include_router(self, router: AppRouter) -> None:
-        for path, route in router.static_routes.items():
-            route.path = self.router.prefix + route.path
-            self.router.static_routes[self.router.prefix + path] = route
-        for route in router.dynamic_routes:
-            route.path = self.router.prefix + route.path
-            self.router.dynamic_routes.append(route)
+    def include_router(self, router: Router) -> None:
+        self.router.mount(router.routes)
 
     def add_exception_handler[T: Exception](
         self, exception: type[T], handler: ExceptionHandler[T]

@@ -51,7 +51,3 @@ def compile_path_pattern(
 
     regex_str = "^/" + "/".join(escaped_parts) + "$"
     return re.compile(regex_str), frozenset(names_seen)
-
-
-def normalize_route_path(path: str) -> str:
-    return path if path.startswith("/") or path == "" else f"/{path}"

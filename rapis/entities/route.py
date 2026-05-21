@@ -10,7 +10,6 @@ from rapis.types import HttpProtocol, Scope
 
 class Route(ABC):
     path: str
-    handler: Handler
     status: HTTPStatus
     methods: Collection[HTTPMethod]
     description: str | None = ""
@@ -40,3 +39,7 @@ class Route(ABC):
 
     @abstractmethod
     def static(self) -> bool: ...
+
+    @property
+    @abstractmethod
+    def handler(self) -> Handler: ...

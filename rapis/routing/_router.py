@@ -1,4 +1,4 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from http import HTTPMethod, HTTPStatus
 from typing import Any, Unpack
 
@@ -28,7 +28,6 @@ class AppRouter:
         self.prefix = prefix
         self.dynamic_routes: list[Route] = []
         self.static_routes: dict[str, Route] = {}
-        self.exception_handlers = []
         self.middlewares = middlewares
         self.route_class = route_class
         self.default = default or self.not_found
@@ -95,7 +94,7 @@ class AppRouter:
         return self.route(
             url,
             methods=[HTTPMethod.DELETE],
-            **RouteOptions(status=HTTPStatus.NO_CONTENT, **opts),
+            **RouteOptions({**opts, "status": HTTPStatus.NO_CONTENT}),
         )
 
     def trace(
@@ -122,3 +121,17 @@ class AppRouter:
                 [("Content-type", "application/json")],
                 b'{"detail":"Not Found"}',
             )
+
+    @property
+    def routes(self) -> Iterable[Route]:
+        yield from self.static_routes.values()
+        yield from self.dynamic_routes
+
+    def mount(self, routes: Iterable[Route]) -> None:
+        for route in routes:
+            final_path = self.prefix + route.path
+            if route.static():
+                self.static_routes[final_path] = route
+            else:
+                self.dynamic_routes.append(route)
+            route.path = final_path

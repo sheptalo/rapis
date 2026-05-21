@@ -9,12 +9,12 @@ class Request:
     def __init__(self, scope: Scope, proto: HttpProtocol) -> None:
         self._scope = scope
         self._proto = proto
-        self._body = None
+        self._body: dict | None = None
 
     @property
     async def body(self) -> dict:
         if self._body is None:
-            self._body = msgspec.json.decode(await self._proto())
+            self._body = dict(msgspec.json.decode(await self._proto()))
         return self._body
 
     @property

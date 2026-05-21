@@ -39,7 +39,9 @@ class HttpProtocol(Protocol):  # source: granian .pyi file
     ) -> Any: ...
 
 
-class Scope:  # source: https://github.com/emmett-framework/granian/blob/master/docs/spec/RSGI.md
+class Scope(
+    Protocol
+):  # source: https://github.com/emmett-framework/granian/blob/master/docs/spec/RSGI.md
     proto: Literal["http", "ws"]
     rsgi_version: str
     http_version: str
