@@ -1,22 +1,22 @@
-# Rapis - Minimalistic web framework based on RSGI
+# Rapis - Limitless Web-framework based on RSGI
 
 [![Python versions](https://img.shields.io/pypi/pyversions/rapis.svg?color=%2334D058)](https://pypi.org/project/rapis)
 [![Current version](https://img.shields.io/pypi/v/rapis?color=%2334D058&label=PyPI)](https://pypi.org/project/rapis)
 [![Current status](https://img.shields.io/pypi/status/rapis)](https://pypi.org/project/rapis)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/rapis)
 
-_this framework was inspired by FastAPI so syntax may be identical_
+#### ⚠️ WARNING: Framework in pre-alpha state, a lot of changes incoming ⚠️
 
-### ⚠️ WARNING: Framework in early development, it is NOT READY for production
+the main goal of this framework is to make expandable system for creating api with minimal dependencies and overhead
 
 Key features:
 
 - **Easy to use**: Syntax was inspired by your favourite framework
-- **Fast**: Built on native RSGI protocol with MsgSpec support
-- **Async Only**: Supports only work with async requests handling
+- **Fast**: contains only _1 dependency_ with minimal overhead see [benchmarks](benchmarks)
+- **Async Only**: Supports only work with _async_ requests handling
 - **Validation**: Built-in support of MsgSpec providing first-class Validation Speed
-- **Functional that actually MATTER**: Framework contains _Only_ what you need to build API _without unnecessary_ dependencies
-- **OpenAPI**: Documentate your API
+- **Minimalistic**: Framework contains _Minimal functional_ to build API
+- **OpenAPI**: Documentate your API (QoL changes WIP)
 
 ## Requirements
 
@@ -26,17 +26,16 @@ Key features:
 
 ```bash
 pip install rapis
-# install any rsgi compatible web-server
-pip install granian
+pip install granian # install any rsgi compatible web-server
 # or simply
 pip install rapis[standard] # includes granian in requirements
 ```
 
-## Example
+## Fast Start
 
 ```python
 # main.py
-from rapis import AppRouter, Query, WebApp
+from rapis import AppRouter, WebApp
 
 router = AppRouter()
 
@@ -44,13 +43,6 @@ router = AppRouter()
 @router.get("/")
 async def root() -> dict:
     return {}
-
-
-@router.get("/echo")
-async def parametrized_handler(
-    data: Query[str] = "default",
-) -> str:  # for now waiting for /echo?data=str if not given adds "default"
-    return data
 
 
 app = WebApp()
@@ -64,7 +56,7 @@ app.include_router(router)
 granian main:app
 ```
 
-## Better Example
+## Moderate Example
 
 ```python
 # routes.py
@@ -99,37 +91,27 @@ app = WebApp()
 app.include_router(router)
 ```
 
-more [examples](examples)
+### More [examples](examples)
 
-## Performance
+## Performance [benchmarks](benchmarks)
 
-see [benchmarks](benchmarks)
-
-## Docs
-
-see [wiki](https://github.com/sheptalo/rapis/wiki)
+## [Wiki](https://github.com/sheptalo/rapis/wiki)
 
 ## TODO
 
-- [X] Exception handling
-- [X] Built-in exception handlers (validation, json parsing)
-- [X] Benchmarks section
-- [ ] Request/Response Work model
-- [ ] Docs
-- [ ] More availabilities to expand logic (custom routes and other)
-- [X] better Query params handle
-- [X] change routing from linear to something else (hash maps for static paths, ?? for dynamic paths)
-- [X] path patterns logic
-- [X] review Middleware logic
-- [ ] websocket support(maybe)
+- [ ] MAKE FRAMEWORK EASY TO EXPAND, EASY TO OVERRIDE (DIP, and other things included)
 - [ ] coverage
-- [X] typing support in TY
-- [X] some examples
+- [ ] Docs
 - [ ] Problem: how to authenticate users?
 - [ ] Problem: how to send files?
 - [ ] Problem: how to work with cookies?
 - [ ] https://jcristharif.com/msgspec/perf-tips.html
-
-## CONTRIBUTING
-
-see [CONTRIBUTING.md](CONTRIBUTING.md)
+- [X] Exception handling
+- [X] Built-in exception handlers (validation, json parsing)
+- [X] Benchmarks section
+- [X] better Query params handle
+- [X] change routing from linear to something else (hash maps for static paths, ?? for dynamic paths)
+- [X] path patterns logic
+- [X] review Middleware logic
+- [X] typing support in TY
+- [X] some examples
