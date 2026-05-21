@@ -1,8 +1,9 @@
 from functools import wraps
+from http import HTTPStatus
 
 import msgspec
 
-from rapis.entities.handler import Handler
+from rapis.abc.endpoint import Endpoint
 from rapis.entities.response import Response
 from rapis.exceptions import ValidationError
 from rapis.services.bindings import parse_bindings
@@ -10,7 +11,7 @@ from rapis.services.path_pattern import path_params
 from rapis.types import HttpProtocol, RSGIApp, Scope
 
 
-def route(handler: Handler) -> RSGIApp:
+def route(handler: Endpoint, status: HTTPStatus) -> RSGIApp:
     @wraps(handler.call)
     async def wrapper(scope: Scope, proto: HttpProtocol) -> None:
         path_kwargs = path_params(handler, scope.path)
@@ -31,7 +32,7 @@ def route(handler: Handler) -> RSGIApp:
             payload = str(result).encode()
 
         proto.response_bytes(
-            handler.status, [("Content-Type", "application/json")], payload
+            status, [("Content-Type", "application/json")], payload
         )
 
     return wrapper

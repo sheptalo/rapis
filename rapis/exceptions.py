@@ -6,3 +6,6 @@ class ValidationError(RapisError):
 
     def __init__(self, errors: dict[str, str]) -> None:
         self.errors = errors
+
+
+class DecodeError(RapisError): ...

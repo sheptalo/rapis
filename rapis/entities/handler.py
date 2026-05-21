@@ -1,17 +1,19 @@
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from re import Pattern
+
+from rapis.entities.bindings import ParamBinding
 
 
 @dataclass
 class Handler:
     call: Callable
-    bindings: list
+    bindings: Sequence[ParamBinding]
     status: HTTPStatus
     path_pattern: Pattern[str] | None = None
     path_fields: frozenset[str] = field(default_factory=frozenset)
-    path_types: dict[str, type] = field(default_factory=dict)
+    path_types: Mapping[str, type] = field(default_factory=dict)
     is_request_response: bool = False
 
     def set_path_matching(

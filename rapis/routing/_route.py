@@ -1,17 +1,13 @@
+import warnings
 from collections.abc import Callable, Collection, Sequence
 from http import HTTPMethod, HTTPStatus
 
+from rapis.abc.middleware import Middleware
+from rapis.abc.route import Route
 from rapis.entities.handler import Handler
-from rapis.entities.middleware import Middleware
-from rapis.entities.route import Route
 from rapis.routing._handle import route
-from rapis.services.bindings import (
-    extract_bindings,
-    extract_path_param_types,
-)
-from rapis.services.path_pattern import (
-    compile_path_pattern,
-)
+from rapis.services.bindings import extract_bindings, extract_path_param_types
+from rapis.services.path_pattern import compile_path_pattern
 from rapis.types import HttpProtocol, Scope
 
 
@@ -19,7 +15,7 @@ class APIRoute(Route):
     def __init__(
         self,
         path: str,
-        endpoint: Callable | Handler,
+        endpoint: Callable,
         status: HTTPStatus,
         *,
         methods: Collection[HTTPMethod] | None = None,
@@ -28,27 +24,27 @@ class APIRoute(Route):
         summary: str | None = "",
         tags: Sequence[str] | None = None,
     ) -> None:
-        self._route_path = path
-        self.status = status
-        if isinstance(endpoint, Handler):
-            self._handler = endpoint
-            self._refresh_handler_path_matching()
-            self.app = route(endpoint)
-        else:
-            path_pat, fields = compile_path_pattern(self._route_path)
-            path_types = extract_path_param_types(endpoint, fields)
-            bindings = [
-                b for b in extract_bindings(endpoint) if b.name not in fields
-            ]
-            self._handler = Handler(
-                call=endpoint,
-                bindings=bindings,
-                status=status,
-                path_pattern=path_pat,
-                path_fields=fields,
-                path_types=path_types,
+        if not path.startswith("/"):
+            warnings.warn(
+                "the path should starts with `/`. "
+                "otherwise there is unexpected behaviour",
+                stacklevel=1,
             )
-            self.app = route(self._handler)
+        self._route_path = path
+        path_pat, fields = compile_path_pattern(self._route_path)
+        path_types = extract_path_param_types(endpoint, fields)
+        bindings = [
+            b for b in extract_bindings(endpoint) if b.name not in fields
+        ]
+        self._handler = Handler(
+            call=endpoint,
+            bindings=bindings,
+            status=status,
+            path_pattern=path_pat,
+            path_fields=fields,
+            path_types=path_types,
+        )
+        self.app = route(self._handler, status)
 
         if middleware is not None:
             for cls, args, kwargs in reversed(middleware):

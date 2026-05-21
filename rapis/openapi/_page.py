@@ -5,11 +5,11 @@ from typing import Any, get_args, get_origin, get_type_hints
 
 import msgspec
 
+from rapis.abc.endpoint import Endpoint
+from rapis.abc.route import Route
+from rapis.abc.router import Router
 from rapis.entities.bindings import ParamBindingSource
-from rapis.entities.handler import Handler
 from rapis.entities.response import Response
-from rapis.entities.route import Route
-from rapis.entities.router import Router
 from rapis.openapi.config import OpenAPIConfig
 from rapis.types import Query
 
@@ -30,7 +30,7 @@ def _method_reads_body(method: str) -> bool:
 
 
 def _operation_parameters(
-    handler: Handler,
+    handler: Endpoint,
     sig: inspect.Signature,
     components: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -66,7 +66,7 @@ def _operation_parameters(
 
 
 def _operation_request_body(
-    handler: Handler,
+    handler: Endpoint,
     sig: inspect.Signature,
     components: dict[str, Any],
 ) -> dict[str, Any] | None:

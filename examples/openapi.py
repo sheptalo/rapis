@@ -4,7 +4,7 @@ from msgspec import Struct
 
 from rapis import AppRouter, Query, WebApp
 
-primitive_router = AppRouter(tags=["primitives"])
+primitive_router = AppRouter(prefix="/prim", tags=["primitives"])
 
 
 @primitive_router.post(

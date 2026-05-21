@@ -1,5 +1,5 @@
 from rapis import AppRouter, WebApp
-from rapis.entities.middleware import Middleware
+from rapis.abc.middleware import Middleware
 from rapis.middlewares import CORSMiddleware
 
 router = AppRouter()

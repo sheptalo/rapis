@@ -3,8 +3,8 @@ from collections.abc import Callable, Collection, Sequence
 from http import HTTPMethod, HTTPStatus
 from typing import Any
 
+from rapis.abc.middleware import Middleware
 from rapis.entities.handler import Handler
-from rapis.entities.middleware import Middleware
 from rapis.types import HttpProtocol, Scope
 
 
@@ -20,7 +20,7 @@ class Route(ABC):
     def __init__(
         self,
         path: str,
-        endpoint: Callable | Handler,
+        endpoint: Callable,
         status: HTTPStatus,
         *,
         methods: Collection[HTTPMethod] | None = None,

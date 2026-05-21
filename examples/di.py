@@ -1,7 +1,7 @@
 from dishka import FromDishka, Provider, Scope, make_async_container, provide
 
 from rapis import AppRouter, WebApp
-from rapis.entities.middleware import Middleware
+from rapis.abc.middleware import Middleware
 from rapis.integration.dishka import (
     DishkaMiddleware,
     DishkaRoute,

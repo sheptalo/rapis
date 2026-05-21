@@ -3,8 +3,8 @@ from typing import Literal
 
 import msgspec
 
-from rapis.entities.middleware import Middleware
-from rapis.entities.router import Router
+from rapis.abc.middleware import Middleware
+from rapis.abc.router import Router
 from rapis.middlewares import (
     ExceptionMiddleware,
     ServerExceptionMiddleware,

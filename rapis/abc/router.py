@@ -1,8 +1,8 @@
 from collections.abc import Iterable, Sequence
 from typing import Any, Protocol
 
-from rapis.entities.middleware import Middleware
-from rapis.entities.route import Route
+from rapis.abc.middleware import Middleware
+from rapis.abc.route import Route
 from rapis.types import HttpProtocol, RSGIApp, Scope
 
 

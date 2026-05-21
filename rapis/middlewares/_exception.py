@@ -1,9 +1,8 @@
 from http import HTTPStatus
 
 import msgspec
-from msgspec import DecodeError
 
-from rapis.exceptions import ValidationError
+from rapis.exceptions import DecodeError, ValidationError
 from rapis.types import ExceptionHandler, HttpProtocol, RSGIApp, Scope
 
 

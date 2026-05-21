@@ -2,15 +2,10 @@ from collections.abc import Callable, Iterable, Sequence
 from http import HTTPMethod, HTTPStatus
 from typing import Any, Unpack
 
-from rapis.entities.middleware import Middleware
-from rapis.entities.route import Route
+from rapis.abc.middleware import Middleware
+from rapis.abc.route import Route
 from rapis.routing import APIRoute
-from rapis.types import (
-    HttpProtocol,
-    RouteOptions,
-    RSGIApp,
-    Scope,
-)
+from rapis.types import HttpProtocol, RouteOptions, RSGIApp, Scope
 
 
 class AppRouter:

@@ -3,13 +3,13 @@ from re import Pattern
 
 import msgspec
 
-from rapis.entities.handler import Handler
+from rapis.abc.endpoint import Endpoint
 from rapis.exceptions import ValidationError
 
 _SEGMENT_PARAM = re.compile(r"^\{([a-zA-Z_][a-zA-Z0-9_]*)\}$")
 
 
-def path_params(handler: Handler, path: str) -> dict:
+def path_params(handler: Endpoint, path: str) -> dict:
     if handler.path_pattern is None:
         return {}
     m = handler.path_pattern.fullmatch(path)

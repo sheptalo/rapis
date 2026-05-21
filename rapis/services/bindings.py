@@ -1,12 +1,13 @@
 import inspect
 from collections.abc import Callable
-from typing import Any, get_args, get_type_hints
+from typing import Any, get_args, get_origin, get_type_hints
 from urllib.parse import parse_qsl
 
 import msgspec
 
+from rapis.abc.endpoint import Endpoint
 from rapis.entities.bindings import ParamBinding, ParamBindingSource
-from rapis.entities.handler import Handler
+from rapis.exceptions import DecodeError
 from rapis.types import HttpProtocol, Query, Scope
 
 
@@ -46,7 +47,7 @@ def extract_bindings(
         if ann is inspect.Parameter.empty:
             continue
         is_struct = isinstance(ann, type) and issubclass(ann, msgspec.Struct)
-        if param.annotation.__name__ == Query.__name__:
+        if get_origin(param.annotation) == Query:
             binding_source = ParamBindingSource.query
             ann = next(iter(get_args(ann)), type(param.default))
             is_struct = issubclass(ann, msgspec.Struct)
@@ -70,7 +71,7 @@ def extract_bindings(
 
 
 async def parse_bindings(
-    handler: Handler, scope: Scope, proto: HttpProtocol
+    handler: Endpoint, scope: Scope, proto: HttpProtocol
 ) -> tuple[dict, dict]:
     kwargs: dict[str, Any] = {}
     errors: dict = {}
@@ -79,7 +80,12 @@ async def parse_bindings(
     decoded_body = {}
     query_dict = {}
     if scope.method in {"POST", "PUT", "PATCH"}:
-        decoded_body = msgspec.json.decode(await proto())
+        raw_body = await proto()
+        if raw_body:
+            try:
+                decoded_body = msgspec.json.decode(raw_body)
+            except msgspec.DecodeError as e:
+                raise DecodeError from e
     if scope.query_string:
         query_dict = dict(parse_qsl(scope.query_string))
 
