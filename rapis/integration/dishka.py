@@ -7,9 +7,8 @@ from dishka import AsyncContainer, Provider, from_context
 from dishka.entities.scope import Scope as DishkaScope
 from dishka.integrations.base import wrap_injection
 
-from rapis.entities.handler import Handler
-from rapis.entities.middleware import Middleware
-from rapis.routing import Route
+from rapis.abc.middleware import Middleware
+from rapis.routing import APIRoute
 from rapis.types import HttpProtocol, RSGIApp, Scope
 
 __all__ = [
@@ -57,20 +56,17 @@ def _inject_async(func: Callable[..., Any]) -> Callable[..., Any]:
     )
 
 
-class DishkaRoute(Route):
+class DishkaRoute(APIRoute):
     def __init__(
         self,
         path: str,
-        endpoint: Callable | Handler,
+        endpoint: Callable,
         status: HTTPStatus,
         *,
         methods: Collection[HTTPMethod] | None = None,
         middleware: Sequence[Middleware] | None = None,
     ) -> None:
-        if isinstance(endpoint, Handler):
-            ep = endpoint
-        else:
-            ep = _inject_async(endpoint)
+        ep = _inject_async(endpoint)
         super().__init__(
             path, ep, status, methods=methods, middleware=middleware
         )

@@ -1,5 +1,6 @@
 from collections.abc import Awaitable, Callable, Mapping
-from typing import Any, Literal, Protocol
+from http import HTTPStatus
+from typing import Any, Literal, Protocol, TypedDict
 
 type RSGIApp = Callable[[Scope, HttpProtocol], Awaitable[None]]
 type ExceptionHandler[T: Exception] = Callable[
@@ -38,7 +39,9 @@ class HttpProtocol(Protocol):  # source: granian .pyi file
     ) -> Any: ...
 
 
-class Scope:  # source: https://github.com/emmett-framework/granian/blob/master/docs/spec/RSGI.md
+class Scope(
+    Protocol
+):  # source: https://github.com/emmett-framework/granian/blob/master/docs/spec/RSGI.md
     proto: Literal["http", "ws"]
     rsgi_version: str
     http_version: str
@@ -50,3 +53,9 @@ class Scope:  # source: https://github.com/emmett-framework/granian/blob/master/
     query_string: str
     headers: Mapping[str, str]
     authority: str | None
+
+
+class RouteOptions(TypedDict, total=False):
+    status: HTTPStatus
+    description: str
+    summary: str

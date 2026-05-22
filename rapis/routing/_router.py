@@ -1,10 +1,11 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from http import HTTPMethod, HTTPStatus
-from typing import Any
+from typing import Any, Unpack
 
-from rapis.entities.middleware import Middleware
-from rapis.routing import Route
-from rapis.types import HttpProtocol, RSGIApp, Scope
+from rapis.abc.middleware import Middleware
+from rapis.abc.route import Route
+from rapis.routing import APIRoute
+from rapis.types import HttpProtocol, RouteOptions, RSGIApp, Scope
 
 
 class AppRouter:
@@ -14,24 +15,27 @@ class AppRouter:
         middlewares: Sequence[Middleware] | None = None,
         *,
         default: RSGIApp | None = None,
-        route_class: type[Route] = Route,
+        route_class: type[Route] = APIRoute,
+        tags: Sequence[str] | None = None,
     ) -> None:
         if not middlewares:
             middlewares = []
         self.prefix = prefix
         self.dynamic_routes: list[Route] = []
         self.static_routes: dict[str, Route] = {}
-        self.exception_handlers = []
         self.middlewares = middlewares
         self.route_class = route_class
         self.default = default or self.not_found
+        self.tags = tags or []
 
     def route(
         self,
         url: str,
-        methods: list[HTTPMethod],
         *,
+        methods: list[HTTPMethod],
         status: HTTPStatus = HTTPStatus.OK,
+        description: str = "",
+        summary: str = "",
     ) -> Callable:
         def deco(func: Callable) -> Callable:
             route = self.route_class(
@@ -40,6 +44,9 @@ class AppRouter:
                 status=status,
                 methods=methods,
                 middleware=self.middlewares,
+                tags=self.tags,
+                description=description,
+                summary=summary,
             )
             if route.static():
                 self.static_routes[url] = route
@@ -49,44 +56,46 @@ class AppRouter:
 
         return deco
 
+    def post(
+        self, url: str, **opts: Unpack[RouteOptions]
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        return self.route(url, methods=[HTTPMethod.POST], **opts)
+
     def head(
-        self, url: str, *, status: HTTPStatus = HTTPStatus.OK
+        self, url: str, **opts: Unpack[RouteOptions]
     ) -> Callable[[Callable], Callable]:
-        return self.route(
-            url, methods=[HTTPMethod.GET, HTTPMethod.HEAD], status=status
-        )
+        return self.route(url, methods=[HTTPMethod.HEAD], **opts)
 
     def get(
-        self, url: str, *, status: HTTPStatus = HTTPStatus.OK
+        self, url: str, **opts: Unpack[RouteOptions]
     ) -> Callable[[Callable], Callable]:
         return self.route(
-            url, methods=[HTTPMethod.GET, HTTPMethod.OPTIONS], status=status
+            url, methods=[HTTPMethod.GET, HTTPMethod.HEAD], **opts
         )
 
-    def post(
-        self, url: str, *, status: HTTPStatus = HTTPStatus.OK
-    ) -> Callable[[Callable], Callable]:
-        return self.route(url, methods=[HTTPMethod.POST], status=status)
-
     def patch(
-        self, url: str, *, status: HTTPStatus = HTTPStatus.OK
+        self, url: str, **opts: Unpack[RouteOptions]
     ) -> Callable[[Callable], Callable]:
-        return self.route(url, methods=[HTTPMethod.PATCH], status=status)
+        return self.route(url, methods=[HTTPMethod.PATCH], **opts)
 
     def put(
-        self, url: str, *, status: HTTPStatus = HTTPStatus.OK
+        self, url: str, **opts: Unpack[RouteOptions]
     ) -> Callable[[Callable], Callable]:
-        return self.route(url, methods=[HTTPMethod.PUT], status=status)
+        return self.route(url, methods=[HTTPMethod.PUT], **opts)
 
     def delete(
-        self, url: str, *, status: HTTPStatus = HTTPStatus.OK
+        self, url: str, **opts: Unpack[RouteOptions]
     ) -> Callable[[Callable], Callable]:
-        return self.route(url, methods=[HTTPMethod.DELETE], status=status)
+        return self.route(
+            url,
+            methods=[HTTPMethod.DELETE],
+            **RouteOptions({**opts, "status": HTTPStatus.NO_CONTENT}),
+        )
 
     def trace(
-        self, url: str, *, status: HTTPStatus = HTTPStatus.OK
+        self, url: str, **opts: Unpack[RouteOptions]
     ) -> Callable[[Callable], Callable]:
-        return self.route(url, methods=[HTTPMethod.TRACE], status=status)
+        return self.route(url, methods=[HTTPMethod.TRACE], **opts)
 
     async def __call__(self, scope: Scope, proto: HttpProtocol) -> Any:
         static_route = self.static_routes.get(scope.path)
@@ -107,3 +116,17 @@ class AppRouter:
                 [("Content-type", "application/json")],
                 b'{"detail":"Not Found"}',
             )
+
+    @property
+    def routes(self) -> Iterable[Route]:
+        yield from self.static_routes.values()
+        yield from self.dynamic_routes
+
+    def mount(self, routes: Iterable[Route]) -> None:
+        for route in routes:
+            final_path = self.prefix + route.path
+            if route.static():
+                self.static_routes[final_path] = route
+            else:
+                self.dynamic_routes.append(route)
+            route.path = final_path

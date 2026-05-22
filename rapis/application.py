@@ -1,9 +1,18 @@
 from functools import reduce
+from typing import Literal
 
-from rapis.entities.middleware import Middleware
+import msgspec
+
+from rapis.abc.middleware import Middleware
+from rapis.abc.router import Router
 from rapis.middlewares import (
     ExceptionMiddleware,
     ServerExceptionMiddleware,
+)
+from rapis.openapi import (
+    OpenAPIConfig,
+    attach_openapi_routes,
+    build_openapi_spec,
 )
 from rapis.routing import AppRouter
 from rapis.types import ExceptionHandler, HttpProtocol, RSGIApp, Scope
@@ -15,8 +24,9 @@ class WebApp:
         *,
         root_path: str = "",
         middlewares: list[Middleware] | None = None,
-        router_class: type[AppRouter] = AppRouter,
+        router_class: type[Router] = AppRouter,
         reraise_exception: bool = True,
+        openapi: OpenAPIConfig | Literal[False] = OpenAPIConfig(),
     ) -> None:
         self.reraise_exception = reraise_exception
         if not middlewares:
@@ -26,10 +36,18 @@ class WebApp:
             tuple[type[Exception], ExceptionHandler]
         ] = []
         self.router = router_class(prefix=root_path)
-        self.root_path = root_path
         self.middleware_stack: RSGIApp | None = None
+        self._openapi_config = openapi or None
 
     def build_middleware_stack(self) -> RSGIApp:
+        if self._openapi_config:
+            spec = build_openapi_spec(self.router, self._openapi_config)
+            attach_openapi_routes(
+                router=self.router,
+                schema_bytes=msgspec.json.encode(spec),
+                config=self._openapi_config,
+            )
+
         exception_handlers = dict(self.exception_handlers)
         return reduce(
             lambda app, mw: mw.cls(app, *mw.args, **mw.kwargs),
@@ -57,13 +75,8 @@ class WebApp:
             self.middleware_stack = self.build_middleware_stack()
         await self.middleware_stack(scope, proto)
 
-    def include_router(self, router: AppRouter) -> None:
-        for path, route in router.static_routes.items():
-            route.path = self.router.prefix + route.path
-            self.router.static_routes[self.router.prefix + path] = route
-        for route in router.dynamic_routes:
-            route.path = self.router.prefix + route.path
-            self.router.dynamic_routes.append(route)
+    def include_router(self, router: Router) -> None:
+        self.router.mount(router.routes)
 
     def add_exception_handler[T: Exception](
         self, exception: type[T], handler: ExceptionHandler[T]

@@ -1,18 +1,15 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from http import HTTPStatus
 from re import Pattern
 
+from rapis.entities.bindings import ParamBinding, ParamBindingSource
 
-@dataclass
+
+@dataclass(slots=True)
 class Handler:
     call: Callable
-    bindings: list
-    status: HTTPStatus
+    bindings: Sequence[ParamBinding] = field(default_factory=list)
     path_pattern: Pattern[str] | None = None
-    path_fields: frozenset[str] = field(default_factory=frozenset)
-    path_types: dict[str, type] = field(default_factory=dict)
-    is_request_response: bool = False
 
     def set_path_matching(
         self,
@@ -22,5 +19,17 @@ class Handler:
         types: dict[str, type],
     ) -> None:
         self.path_pattern = pattern
-        self.path_fields = fields
-        self.path_types = types
+        rest = [
+            b for b in self.bindings if b.source is not ParamBindingSource.path
+        ]
+        path_binds = [
+            ParamBinding(
+                name=name,
+                source=ParamBindingSource.path,
+                type=types[name],
+                is_struct=False,
+                default=None,
+            )
+            for name in sorted(fields)
+        ]
+        self.bindings = [*path_binds, *rest]
