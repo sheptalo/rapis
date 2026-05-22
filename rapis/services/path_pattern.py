@@ -1,29 +1,12 @@
 import re
 from re import Pattern
 
-import msgspec
-
-from rapis.abc.endpoint import Endpoint
-from rapis.exceptions import ValidationError
-
 _SEGMENT_PARAM = re.compile(r"^\{([a-zA-Z_][a-zA-Z0-9_]*)\}$")
 
 
-def path_params(handler: Endpoint, path: str) -> dict:
-    if handler.path_pattern is None:
-        return {}
-    m = handler.path_pattern.fullmatch(path)
-    if not m:
-        return {}
-    raw = m.groupdict()
-    out: dict = {}
-    for name, value in raw.items():
-        typ = handler.path_types[name]
-        try:
-            out[name] = msgspec.convert(value, typ, strict=False)
-        except msgspec.ValidationError as e:
-            raise ValidationError(errors={"detail": str(e)}) from e
-    return out
+def path_captures(pattern: Pattern[str] | None, path: str) -> dict[str, str]:
+    m = pattern.fullmatch(path) if pattern else None
+    return dict(m.groupdict()) if m else {}
 
 
 def compile_path_pattern(

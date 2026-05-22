@@ -56,6 +56,11 @@ async def lis() -> NestedUser:
     return NestedUser(count=1, users=[User(name="1")])
 
 
+@struct_router.post("/{dynamic}")
+async def dynamic(dynamic: str) -> NestedUser:
+    return NestedUser(count=1, users=[User(name=dynamic)])
+
+
 app = WebApp()
 
 app.include_router(struct_router)

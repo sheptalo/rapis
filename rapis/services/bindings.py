@@ -1,5 +1,5 @@
 import inspect
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, get_args, get_origin, get_type_hints
 from urllib.parse import parse_qsl
 
@@ -70,42 +70,62 @@ def extract_bindings(
     return bindings
 
 
+def _binding_source_raw(
+    b: ParamBinding,
+    path_captures: Mapping[str, str],
+    query_dict: dict[str, str],
+    decoded_body: dict[str, Any],
+) -> tuple[Any, bool]:  # TODO(): move from this to extensible variant
+    if b.source is ParamBindingSource.path:
+        return path_captures.get(b.name), False
+    if b.source is ParamBindingSource.query:
+        chunk = query_dict if b.is_struct else query_dict.get(b.name)
+        return chunk, False
+    chunk = decoded_body if b.is_struct else decoded_body.get(b.name)
+    return chunk, True
+
+
 async def parse_bindings(
-    handler: Endpoint, scope: Scope, proto: HttpProtocol
-) -> tuple[dict, dict]:
+    handler: Endpoint,
+    scope: Scope,
+    proto: HttpProtocol,
+    path_captures: Mapping[str, str],
+) -> tuple[dict[str, Any], dict]:
     kwargs: dict[str, Any] = {}
     errors: dict = {}
     if not handler.bindings:
         return kwargs, errors
-    decoded_body = {}
-    query_dict = {}
-    if scope.method in {"POST", "PUT", "PATCH"}:
+    decoded_body: dict[str, Any] = {}
+    query_dict: dict[str, str] = {}
+    wants_body = any(
+        b.source == ParamBindingSource.body for b in handler.bindings
+    )
+    if wants_body and scope.method in {"POST", "PUT", "PATCH"}:
         raw_body = await proto()
         if raw_body:
             try:
                 decoded_body = msgspec.json.decode(raw_body)
             except msgspec.DecodeError as e:
                 raise DecodeError from e
-    if scope.query_string:
+    wants_query = any(
+        b.source == ParamBindingSource.query for b in handler.bindings
+    )
+    if wants_query and scope.query_string:
         query_dict = dict(parse_qsl(scope.query_string))
 
     for b in handler.bindings:
-        data_source: Any = (
-            query_dict
-            if b.source == ParamBindingSource.query
-            else decoded_body
+        raw, strict_convert = _binding_source_raw(
+            b, path_captures, query_dict, decoded_body
         )
-        data_source = (
-            data_source.get(b.name) if not b.is_struct else data_source
-        )
-        if b.default is None and not data_source:
+
+        if b.default is None and not raw and raw != 0 and raw is not False:
             errors["detail"] = "Missing Required field"
             continue
         try:
             value = msgspec.convert(
-                data_source or b.default,
+                raw if raw is not None else b.default,
                 b.type,
-                strict=b.source is not ParamBindingSource.query,
+                strict=strict_convert,
             )
         except msgspec.ValidationError as e:
             errors["detail"] = str(e)

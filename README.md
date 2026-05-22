@@ -99,8 +99,9 @@ app.include_router(router)
 
 ## TODO
 
-- [ ] MAKE FRAMEWORK EASY TO EXPAND, EASY TO OVERRIDE (DIP, and other things included)
+- [ ] MAKE FRAMEWORK EASY TO EXTEND, EASY TO OVERRIDE (DIP, and other things included)
 - [ ] coverage
+- [ ] Test Client
 - [ ] Docs
 - [ ] Problem: how to authenticate users?
 - [ ] Problem: how to send files?

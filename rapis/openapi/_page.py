@@ -21,8 +21,7 @@ def _schema_for_type(typ: Any, components: dict[str, Any]) -> dict[str, Any]:
 
 
 def _binding_required(sig: inspect.Signature, name: str) -> bool:
-    param = sig.parameters[name]
-    return param.default is inspect.Parameter.empty
+    return sig.parameters[name].default is inspect.Parameter.empty
 
 
 def _method_reads_body(method: str) -> bool:
@@ -35,13 +34,15 @@ def _operation_parameters(
     components: dict[str, Any],
 ) -> list[dict[str, Any]]:
     params: list[dict[str, Any]] = []
-    for name, typ in handler.path_types.items():
+    for binding in handler.bindings:
+        if binding.source != ParamBindingSource.path:
+            continue
         params.append(
             {
-                "name": name,
+                "name": binding.name,
                 "in": "path",
                 "required": True,
-                "schema": _schema_for_type(typ, components),
+                "schema": _schema_for_type(binding.type, components),
             },
         )
 

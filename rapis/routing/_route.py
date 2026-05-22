@@ -2,6 +2,7 @@ import warnings
 from collections.abc import Callable, Collection, Sequence
 from http import HTTPMethod, HTTPStatus
 
+from rapis.abc.endpoint import Endpoint
 from rapis.abc.middleware import Middleware
 from rapis.abc.route import Route
 from rapis.entities.handler import Handler
@@ -39,10 +40,10 @@ class APIRoute(Route):
         self._handler = Handler(
             call=endpoint,
             bindings=bindings,
-            status=status,
             path_pattern=path_pat,
-            path_fields=fields,
-            path_types=path_types,
+        )
+        self._handler.set_path_matching(
+            pattern=path_pat, fields=fields, types=path_types
         )
         self.app = route(self._handler, status)
 
@@ -53,6 +54,7 @@ class APIRoute(Route):
         self.description = description
         self.summary = summary
         self.methods = methods or [HTTPMethod.GET]
+        self.status = status
 
     async def __call__(self, scope: Scope, proto: HttpProtocol) -> None:
         if self.methods and scope.method not in self.methods:
@@ -86,7 +88,7 @@ class APIRoute(Route):
         return self._handler.path_pattern.fullmatch(scope.path) is not None
 
     @property
-    def handler(self) -> Handler:
+    def handler(self) -> Endpoint:
         return self._handler
 
     def static(self) -> bool:
