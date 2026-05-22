@@ -100,13 +100,14 @@ app.include_router(router)
 ## TODO
 
 - [ ] MAKE FRAMEWORK EASY TO EXTEND, EASY TO OVERRIDE (DIP, and other things included)
-- [ ] coverage
+- [ ] coverage (atleast 80%)
 - [ ] Test Client
 - [ ] Docs
+- [ ] life cycle
 - [ ] Problem: how to authenticate users?
-- [ ] Problem: how to send files?
-- [ ] Problem: how to work with cookies?
-- [ ] https://jcristharif.com/msgspec/perf-tips.html
+- [ ] Problem: how to send files? (receive files: like query, send files: ??)
+- [ ] Problem: how to work with cookies? (get cookies: like query, send cookies: ??)
+- [ ] https://jcristharif.com/msgspec/perf-tips.html (reduce latency more)
 - [X] Exception handling
 - [X] Built-in exception handlers (validation, json parsing)
 - [X] Benchmarks section
