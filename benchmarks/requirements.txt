@@ -1,5 +1,5 @@
 granian>=2.7.4
-fastapi>=0.136.3
+fastapi>=0.138.2
 litestar[standard]>=2.22.0
 emmett>=2.8.1
 msgspec>=0.21.0
