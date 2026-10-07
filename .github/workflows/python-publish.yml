@@ -11,12 +11,38 @@ name: Upload Python Package
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  release-build:
+  build-wheels:
+    name: wheels (${{ matrix.runs-on }})
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      matrix:
+        runs-on:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - windows-latest
+          - windows-11-arm
+          - macos-15-intel
+          - macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v4.2.1
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.runs-on }}
+          path: wheelhouse/*.whl
+
+  build-sdist:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,22 +52,23 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build release distributions
+      - name: Build sdist
         run: |
-          # NOTE: put your own distribution build steps here.
           python -m pip install build
-          python -m build
+          python -m build --sdist
 
-      - name: Upload distributions
+      - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
-          name: release-dists
-          path: dist/
+          name: sdist
+          path: dist/*.tar.gz
 
   pypi-publish:
     runs-on: ubuntu-latest
+    if: github.event_name == 'release'
     needs:
-      - release-build
+      - build-wheels
+      - build-sdist
     permissions:
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
@@ -61,8 +88,8 @@ jobs:
       - name: Retrieve release distributions
         uses: actions/download-artifact@v4
         with:
-          name: release-dists
           path: dist/
+          merge-multiple: true
 
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

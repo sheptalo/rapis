@@ -1,13 +1,12 @@
-from collections.abc import Awaitable, Callable, Mapping
-from http import HTTPStatus
-from typing import Any, Literal, Protocol, TypedDict
+import inspect
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any, Literal, Protocol
 
-type RSGIApp = Callable[[Scope, HttpProtocol], Awaitable[None]]
-type ExceptionHandler[T: Exception] = Callable[
-    [T, Scope, HttpProtocol], Awaitable[None]
-]
-
-type Query[T] = T
+try:
+    from rapis._speedups import parse_query
+except ImportError:
+    from rapis._query import parse_query
 
 
 class HttpProtocol(Protocol):  # source: granian .pyi file
@@ -55,7 +54,76 @@ class Scope(
     authority: str | None
 
 
-class RouteOptions(TypedDict, total=False):
-    status: HTTPStatus
-    description: str
-    summary: str
+class Response:
+    __slots__ = ("status", "headers", "body")
+
+    def __init__(
+        self,
+        status: int = 200,
+        headers: list[tuple[str, str]] | None = None,
+        body: bytes = b"",
+    ) -> None:
+        self.status = status
+        self.headers = headers if headers is not None else []
+        self.body = body
+
+
+class Request:
+    __slots__ = ("scope", "proto", "path_params", "state", "body", "_query")
+
+    def __init__(self, scope: Scope, proto: HttpProtocol) -> None:
+        self.scope = scope
+        self.proto = proto
+        self.path_params: dict[str, str] = {}
+        self.state: dict[str, Any] = {}
+        self.body = b""
+        self._query: dict[str, str] | None = None
+
+    @property
+    def query(self) -> dict[str, str]:
+        if self._query is None:
+            qs = self.scope.query_string
+            self._query = parse_query(qs) if qs else {}
+        return self._query
+
+
+@dataclass(frozen=True, slots=True)
+class Param:
+    name: str
+    type: Any
+    default: Any
+
+    @property
+    def required(self) -> bool:
+        return self.default is inspect.Parameter.empty
+
+
+type Handler = Callable[[Request], Awaitable[Response]]
+type ExceptionHandler[T] = Callable[[T, Request], Response]
+
+
+class Middleware(Protocol):
+    async def __call__(
+        self, handler: Handler, request: Request
+    ) -> Response: ...
+
+
+class Parser(Protocol):
+    needs_body: bool
+    fields: Sequence[str] | None
+
+    def build(
+        self, params: list[Param]
+    ) -> Callable[[Request], dict[str, Any]]: ...
+
+
+class Serializer(Protocol):
+    def build(self, tp: Any, status: int) -> Callable[[Any], Response]: ...
+
+
+@dataclass(slots=True)
+class HandlerSpec:
+    func: Callable[..., Awaitable[Any]]
+    path: str
+    methods: tuple[str, ...]
+    status: int

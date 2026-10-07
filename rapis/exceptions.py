@@ -1,11 +1,8 @@
-class RapisError(Exception): ...
+class BuildError(Exception): ...
 
 
-class ValidationError(RapisError):
-    errors: dict[str, str]
-
-    def __init__(self, errors: dict[str, str]) -> None:
-        self.errors = errors
-
-
-class DecodeError(RapisError): ...
+class HTTPError(Exception):
+    def __init__(self, status: int, detail: str = "") -> None:
+        super().__init__(status, detail)
+        self.status = status
+        self.detail = detail

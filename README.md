@@ -16,7 +16,6 @@ Key features:
 - **Async Only**: Supports only work with _async_ requests handling
 - **Validation**: Built-in support of MsgSpec providing first-class Validation Speed
 - **Minimalistic**: Framework contains _Minimal functional_ to build API
-- **OpenAPI**: Documentate your API (QoL changes WIP)
 
 ## Requirements
 
@@ -35,9 +34,9 @@ pip install rapis[standard] # includes granian in requirements
 
 ```python
 # main.py
-from rapis import AppRouter, WebApp
+from rapis import App, Router
 
-router = AppRouter()
+router = Router()
 
 
 @router.get("/")
@@ -45,9 +44,7 @@ async def root() -> dict:
     return {}
 
 
-app = WebApp()
-app.include_router(router)
-
+app = App(router)
 ```
 
 ### Run
@@ -61,59 +58,94 @@ granian main:app
 ```python
 # routes.py
 from msgspec import Struct
-from rapis import AppRouter, Query
+from rapis import MsgSpecParser, Router
 
-router = AppRouter()
+router = Router()
+# parameters without another source are read from the query string
+router.parser = MsgSpecParser()
 
 
 class Item(Struct):
     name: str
 
 
-@router.get("/queries_with_struct")
-async def fetch_item(item: Query[Item]):  # no default means required and will expect to receive all fields in query params
-    return Item(name="query")  # automatically parses to {"name": "query"}
+@router.get("/items/{item_id}")
+async def get_item(item_id: int, verbose: bool = False) -> dict:
+    # item_id comes from the path, verbose from the query string
+    return {"id": item_id, "verbose": verbose}
 
 
-@router.post("/echo") # also put, patch
-async def fetch_item(item: Item):  # will try to read and validate all fields from body
+@router.post("/items", status=201)
+@MsgSpecParser("body")  # the JSON body is validated into Item
+async def create_item(item: Item) -> Item:
     return item
-
 ```
 
 ```python
 # main.py
-from rapis import WebApp
+from rapis import App
 
 from routes import router
 
-app = WebApp()
-app.include_router(router)
+app = App(router)
 ```
 
-### More [examples](examples)
+### Where handler parameters come from
+
+Resolved once, when the app is built, in this order:
+
+1. annotated as `Request` — the request itself;
+2. named like a `{placeholder}` of the path — converted to the annotated type;
+3. listed in some middleware's `provides` — taken from `request.state`;
+4. a parser: `MsgSpecParser("query")` (default) or `MsgSpecParser("body")`; a parser with `fields=[...]` takes exactly those names, a parser without `fields` takes the rest. Set it per handler as a decorator or per router with `router.parser = ...` (inherited by child routers);
+5. otherwise the parameter needs a default value — a missing source raises `BuildError` at startup, not at request time.
+
+Return values are encoded as JSON with the `status` of the route; `-> None` answers `204`, a returned `Response(status, headers, body)` is sent as is.
+
+### Middlewares, errors
+
+```python
+from rapis import (
+    App,
+    CORSMiddleware,
+    Handler,
+    Header,
+    HTTPError,
+    Request,
+    Response,
+    Router,
+)
+
+root = Router()
+# outer middlewares live on the root router only and wrap error responses too
+root.outer_middlewares.append(CORSMiddleware(allow_origins=["https://example.com"]))
+
+
+class Auth:
+    provides = ("user",)  # the `user` parameter of handlers comes from request.state
+
+    async def __call__(self, handler: Handler, request: Request) -> Response:
+        request.state["user"] = request.scope.headers.get("x-user", "anonymous")
+        return await handler(request)
+
+
+api = Router(prefix="/api")
+api.middlewares.append(Auth())  # this router and its children
+root.include_router(api)
+
+
+@api.get("/me")
+async def me(user: str) -> dict:
+    return {"user": user}
+
+
+@api.route("/items/{item_id}", methods=["PUT", "PATCH"])  # methods without a shortcut
+async def update_item(item_id: int) -> None:
+    raise HTTPError(404, f"item {item_id} not found")  # 404 {"detail": "item 3 not found"}
+
+
+app = App(root)
+```
 
 ## Performance [benchmarks](benchmarks)
 
-## [Wiki](https://github.com/sheptalo/rapis/wiki)
-
-## TODO
-
-- [ ] MAKE FRAMEWORK EASY TO EXTEND, EASY TO OVERRIDE (DIP, and other things included)
-- [ ] coverage (atleast 80%)
-- [ ] Test Client
-- [ ] Docs
-- [ ] life cycle
-- [ ] Problem: how to authenticate users?
-- [ ] Problem: how to send files? (receive files: like query, send files: ??)
-- [ ] Problem: how to work with cookies? (get cookies: like query, send cookies: ??)
-- [ ] https://jcristharif.com/msgspec/perf-tips.html (reduce latency more)
-- [X] Exception handling
-- [X] Built-in exception handlers (validation, json parsing)
-- [X] Benchmarks section
-- [X] better Query params handle
-- [X] change routing from linear to something else (hash maps for static paths, ?? for dynamic paths)
-- [X] path patterns logic
-- [X] review Middleware logic
-- [X] typing support in TY
-- [X] some examples
