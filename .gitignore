@@ -5,7 +5,11 @@ build/
 dist/
 wheels/
 *.egg-info
+*.so
 
 # Virtual environments
 .venv
 .DS_Store
+
+
+.clangd
