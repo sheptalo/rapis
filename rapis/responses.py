@@ -17,6 +17,14 @@ def json_response(
     return Response(status, headers, encode(body))
 
 
+async def not_found(_req: Request) -> Response:
+    return json_response({"detail": "Not Found"}, 404)
+
+
+async def method_not_allowed(allow: str, _req: Request) -> Response:
+    return Response(405, [("allow", allow)])
+
+
 def http_error(exc: HTTPError, _req: Request) -> Response:
     return json_response({"detail": exc.detail}, exc.status)
 

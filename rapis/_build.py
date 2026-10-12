@@ -9,7 +9,7 @@ from typing import Any, get_type_hints
 import msgspec
 
 from rapis.exceptions import BuildError
-from rapis.responses import json_response
+from rapis.responses import method_not_allowed, not_found
 from rapis.router import Router
 from rapis.serializer import json
 from rapis.types import (
@@ -310,14 +310,6 @@ def _alternation(routes: Iterable[tuple[str, dict[str, Any]]]) -> Matcher:
     return re.compile("|".join(alternatives) or "(?!)").fullmatch, by_last
 
 
-async def _not_found(_req: Request) -> Response:
-    return json_response({"detail": "Not Found"}, 404)
-
-
-async def _method_not_allowed(allow: str, _req: Request) -> Response:
-    return Response(405, [("allow", allow)])
-
-
 def _dispatcher(
     static: dict[str, dict[str, Any]], dynamic: dict[str, dict[str, Any]]
 ) -> Callable[[Request], Handler]:
@@ -349,13 +341,13 @@ def _dispatcher(
             )
             found = match(path)
             if found is None:
-                return _not_found
+                return not_found
             table, params = by_last[found.lastindex]
             req.path_params = {name: found.group(i) for name, i in params}
         handler: Handler | None = table.get(scope.method) or table.get("*")
         if handler is None:
             allow = ", ".join(sorted(table))
-            return functools.partial(_method_not_allowed, allow)
+            return functools.partial(method_not_allowed, allow)
         return handler
 
     return resolve
