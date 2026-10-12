@@ -5,7 +5,7 @@
 # [tool.uv.sources]
 # rapis = { path = "..", editable = true }
 # ///
-"""Per-request latency of rapis, BlackSheep, Litestar and FastAPI.
+"""Per-request latency of rapis (0.1 and 0.0.4), BlackSheep, Litestar, FastAPI.
 
 In-process, no server: see benchmarks/README.md for the method.
 
@@ -20,6 +20,7 @@ import random
 import statistics
 import sys
 import time
+from http import HTTPStatus
 from importlib.metadata import version
 from types import SimpleNamespace
 
@@ -32,25 +33,34 @@ import rapis
 import rapis._query
 import rapis.types
 
+# rapis 0.0.4: тег 0.0.4 в benchmarks/rapis004, пакет переименован, чтобы
+# обе версии работали в одном процессе
+from rapis004 import Query, WebApp
+from rapis004.entities.middleware import Middleware
+
 ROUNDS = int(os.environ.get("ROUNDS", "20"))
 N = int(os.environ.get("N", "10000"))
 WARM = 500  # после чужого варианта кеши процессора холодные
 Q6 = "a=1&b=2&c=3&d=4&e=5&f=6"
 QENC = "q=%D0%BF%D1%80%D0%B8%D0%B2%D0%B5%D1%82+%D0%BC%D0%B8%D1%80&page=2"
+NO_CONTENT = HTTPStatus.NO_CONTENT
 SCENARIOS = [  # название, приложение, путь ({id} — свой у каждого запроса), query
-    ("empty, 204", "base", "/", ""),
-    ("path, 1 dynamic route", "base", "/items/{id}", ""),
+    ("empty, 204", "empty", "/", ""),
+    ("path, 1 dynamic route", "item", "/items/{id}", ""),
     ("path, 50 dynamic routes", "dyn50", "/r49/{id}", ""),
     ("path, 200 dynamic routes", "dyn200", "/r199/{id}", ""),
-    ("query, 2 params", "base", "/query", "skip=256&limit=10"),
-    ("query, 6 params", "base", "/query6", Q6),
-    ("query, %-encoded", "base", "/search", QENC),
+    ("query, 2 params", "query", "/query", "skip=256&limit=10"),
+    ("query, 6 params", "query6", "/query6", Q6),
+    ("query, %-encoded", "search", "/search", QENC),
     ("empty + 1 middleware", "mw1", "/", ""),
     ("empty + 3 middleware", "mw3", "/", ""),
     ("empty + 5 middleware", "mw5", "/", ""),
 ]
 ASGI = ("BlackSheep", "Litestar", "FastAPI")
-VARIANTS = ("rapis", "rapis (no C)", *ASGI)
+RAPIS = "rapis"
+RAPIS_NO_C = "rapis (no C)"
+RAPIS_004 = "rapis 0.0.4"
+VARIANTS = (RAPIS, RAPIS_NO_C, RAPIS_004, *ASGI)
 
 # rapis выбирает parse_query при импорте; вариант «no C» на время своих
 # пачек подменяет его Python-версией
@@ -58,48 +68,154 @@ NATIVE_QUERY = rapis.types.parse_query
 PYTHON_QUERY = rapis._query.parse_query
 
 
-# --- rapis -------------------------------------------------------------------
+# --- rapis 0.1 ---------------------------------------------------------------
 class Pass:
     async def __call__(self, handler, request):
         return await handler(request)
 
 
 def rapis_apps() -> dict:
-    base = rapis.Router()
+    # у каждого сценария свой роутер только со своими маршрутами: роутер
+    # с линейным поиском не должен платить за маршруты чужих сценариев
+    apps = {}
 
-    @base.get("/")
+    router = rapis.Router()
+
+    @router.get("/")
     async def empty() -> None: ...
 
-    @base.get("/items/{item_id}")
+    apps["empty"] = rapis.App(router)
+
+    router = rapis.Router()
+
+    @router.get("/items/{item_id}")
     async def item(item_id: int) -> None: ...
 
-    @base.get("/query")
+    apps["item"] = rapis.App(router)
+
+    router = rapis.Router()
+
+    @router.get("/query")
     @rapis.MsgSpecParser()
     async def query(skip: int = 0, limit: int = 10) -> None: ...
 
-    @base.get("/query6")
-    @rapis.MsgSpecParser()
-    async def query6(a: int = 0, b: int = 0, c: int = 0, d: int = 0,
-                     e: int = 0, f: int = 0) -> None: ...
+    apps["query"] = rapis.App(router)
 
-    @base.get("/search")
+    router = rapis.Router()
+
+    @router.get("/query6")
+    @rapis.MsgSpecParser()
+    async def query6(
+        a: int = 0, b: int = 0, c: int = 0, d: int = 0, e: int = 0, f: int = 0
+    ) -> None: ...
+
+    apps["query6"] = rapis.App(router)
+
+    router = rapis.Router()
+
+    @router.get("/search")
     @rapis.MsgSpecParser()
     async def search(q: str = "", page: int = 1) -> None: ...
 
-    routers = {"base": base}
+    apps["search"] = rapis.App(router)
+
     for k in (50, 200):
-        routers[f"dyn{k}"] = dyn = rapis.Router()
+        router = rapis.Router()
         for i in range(k):
-            @dyn.get(f"/r{i}/{{item_id}}")
+
+            @router.get(f"/r{i}/{{item_id}}")
             async def h(item_id: int) -> None: ...
 
+        apps[f"dyn{k}"] = rapis.App(router)
+
     for k in (1, 3, 5):
-        routers[f"mw{k}"] = mw = rapis.Router()
+        mw = rapis.Router()
         mw.middlewares.extend(Pass() for _ in range(k))
         mw.get("/")(empty)
-    apps = {key: rapis.App(router) for key, router in routers.items()}
+        apps[f"mw{k}"] = rapis.App(mw)
+
     for app in apps.values():
         app.build()
+    return apps
+
+
+# --- rapis 0.0.4 -------------------------------------------------------------
+class Pass004:  # RSGI-мидлварь 0.0.4: фабрика получает приложение первым
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, proto) -> None:
+        await self.app(scope, proto)
+
+
+def rapis004_apps() -> dict:
+    # свой API 0.0.4: WebApp и AppRouter, параметры запроса — Query[T];
+    # обработчики возвращают "" и отвечают 204, как None у rapis 0.1
+    apps = {}
+
+    app = WebApp()
+
+    @app.router.get("/", status=NO_CONTENT)
+    async def empty() -> str:
+        return ""
+
+    apps["empty"] = app
+
+    app = WebApp()
+
+    @app.router.get("/items/{item_id}", status=NO_CONTENT)
+    async def item(item_id: int) -> str:
+        return ""
+
+    apps["item"] = app
+
+    app = WebApp()
+
+    @app.router.get("/query", status=NO_CONTENT)
+    async def query(skip: Query[int] = 0, limit: Query[int] = 10) -> str:
+        return ""
+
+    apps["query"] = app
+
+    app = WebApp()
+
+    @app.router.get("/query6", status=NO_CONTENT)
+    async def query6(
+        a: Query[int] = 0,
+        b: Query[int] = 0,
+        c: Query[int] = 0,
+        d: Query[int] = 0,
+        e: Query[int] = 0,
+        f: Query[int] = 0,
+    ) -> str:
+        return ""
+
+    apps["query6"] = app
+
+    app = WebApp()
+
+    @app.router.get("/search", status=NO_CONTENT)
+    async def search(q: Query[str] = "", page: Query[int] = 1) -> str:
+        return ""
+
+    apps["search"] = app
+
+    for k in (50, 200):
+        app = WebApp()
+        for i in range(k):
+
+            @app.router.get(f"/r{i}/{{item_id}}", status=NO_CONTENT)
+            async def h(item_id: int) -> str:
+                return ""
+
+        apps[f"dyn{k}"] = app
+
+    for k in (1, 3, 5):
+        app = WebApp()
+        app.router.middlewares.extend(Middleware(Pass004) for _ in range(k))
+        app.router.get("/", status=NO_CONTENT)(empty)
+        apps[f"mw{k}"] = app
+
     return apps
 
 
@@ -115,7 +231,9 @@ class Proto:
 
 
 def rsgi_caller(app):
-    proto, rsgi = Proto(), app.__rsgi__
+    proto = Proto()
+    # rapis 0.1 отдаёт __rsgi__, у 0.0.4 приложение вызывается само
+    rsgi = getattr(app, "__rsgi__", app)
 
     async def call(scope) -> None:
         await rsgi(scope, proto)
@@ -129,28 +247,50 @@ async def bs_pass(request, handler):
 
 
 def bs_apps() -> dict:
-    base = Application(router=BSRouter())
+    # см. rapis_apps: у каждого сценария своё приложение
+    apps = {}
 
-    @base.router.get("/")
+    app = Application(router=BSRouter())
+
+    @app.router.get("/")
     async def empty() -> None: ...
 
-    @base.router.get("/items/{item_id}")
+    apps["empty"] = app
+
+    app = Application(router=BSRouter())
+
+    @app.router.get("/items/{item_id}")
     async def item(item_id: int) -> None: ...
 
-    @base.router.get("/query")
+    apps["item"] = app
+
+    app = Application(router=BSRouter())
+
+    @app.router.get("/query")
     async def query(skip: int = 0, limit: int = 10) -> None: ...
 
-    @base.router.get("/query6")
-    async def query6(a: int = 0, b: int = 0, c: int = 0, d: int = 0,
-                     e: int = 0, f: int = 0) -> None: ...
+    apps["query"] = app
 
-    @base.router.get("/search")
+    app = Application(router=BSRouter())
+
+    @app.router.get("/query6")
+    async def query6(
+        a: int = 0, b: int = 0, c: int = 0, d: int = 0, e: int = 0, f: int = 0
+    ) -> None: ...
+
+    apps["query6"] = app
+
+    app = Application(router=BSRouter())
+
+    @app.router.get("/search")
     async def search(q: str = "", page: int = 1) -> None: ...
 
-    apps = {"base": base}
+    apps["search"] = app
+
     for k in (50, 200):
         apps[f"dyn{k}"] = app = Application(router=BSRouter())
         for i in range(k):
+
             @app.router.get(f"/r{i}/{{item_id}}")
             async def h(item_id: int) -> None: ...
 
@@ -170,31 +310,16 @@ def pass_asgi(app):  # самый лёгкий вид middleware в Litestar
 
 
 def ls_apps() -> dict:
-    def base_handlers() -> list:
-        @get("/", status_code=204)
-        async def empty() -> None: ...
-
-        @get("/items/{item_id:int}", status_code=204)
-        async def item(item_id: int) -> None: ...
-
-        @get("/query", status_code=204)
-        async def query(skip: int = 0, limit: int = 10) -> None: ...
-
-        @get("/query6", status_code=204)
-        async def query6(a: int = 0, b: int = 0, c: int = 0, d: int = 0,
-                         e: int = 0, f: int = 0) -> None: ...
-
-        @get("/search", status_code=204)
-        async def search(q: str = "", page: int = 1) -> None: ...
-
-        return [empty, item, query, query6, search]
-
+    # см. rapis_apps: у каждого сценария своё приложение
     def dyn_handlers(k: int) -> list:
         out = []
         for i in range(k):
+
             async def h(item_id: int) -> None: ...
-            out.append(get(f"/r{i}/{{item_id:int}}", status_code=204,
-                           name=f"r{i}")(h))
+
+            out.append(
+                get(f"/r{i}/{{item_id:int}}", status_code=204, name=f"r{i}")(h)
+            )
         return out
 
     def empty_handler() -> list:
@@ -203,12 +328,46 @@ def ls_apps() -> dict:
 
         return [empty]
 
-    apps = {"base": Litestar(base_handlers(), openapi_config=None)}
+    apps = {}
+
+    @get("/", status_code=204)
+    async def empty() -> None: ...
+
+    apps["empty"] = Litestar([empty], openapi_config=None)
+
+    @get("/items/{item_id:int}", status_code=204)
+    async def item(item_id: int) -> None: ...
+
+    apps["item"] = Litestar([item], openapi_config=None)
+
+    @get("/query", status_code=204)
+    async def query(skip: int = 0, limit: int = 10) -> None: ...
+
+    apps["query"] = Litestar([query], openapi_config=None)
+
+    @get("/query6", status_code=204)
+    async def query6(
+        a: int = 0,
+        b: int = 0,
+        c: int = 0,
+        d: int = 0,
+        e: int = 0,
+        f: int = 0,
+    ) -> None: ...
+
+    apps["query6"] = Litestar([query6], openapi_config=None)
+
+    @get("/search", status_code=204)
+    async def search(q: str = "", page: int = 1) -> None: ...
+
+    apps["search"] = Litestar([search], openapi_config=None)
+
     for k in (50, 200):
         apps[f"dyn{k}"] = Litestar(dyn_handlers(k), openapi_config=None)
     for k in (1, 3, 5):
-        apps[f"mw{k}"] = Litestar(empty_handler(), openapi_config=None,
-                                  middleware=[pass_asgi] * k)
+        apps[f"mw{k}"] = Litestar(
+            empty_handler(), openapi_config=None, middleware=[pass_asgi] * k
+        )
     return apps
 
 
@@ -225,29 +384,52 @@ def fa_apps() -> dict:
     def new() -> FastAPI:  # без /docs и /openapi.json, как и у остальных
         return FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
 
-    base = new()
+    # см. rapis_apps: у каждого сценария своё приложение
+    apps = {}
 
-    @base.get("/", status_code=204)
+    app = new()
+
+    @app.get("/", status_code=204)
     async def empty() -> None: ...
 
-    @base.get("/items/{item_id}", status_code=204)
+    apps["empty"] = app
+
+    app = new()
+
+    @app.get("/items/{item_id}", status_code=204)
     async def item(item_id: int) -> None: ...
 
-    @base.get("/query", status_code=204)
+    apps["item"] = app
+
+    app = new()
+
+    @app.get("/query", status_code=204)
     async def query(skip: int = 0, limit: int = 10) -> None: ...
 
-    @base.get("/query6", status_code=204)
-    async def query6(a: int = 0, b: int = 0, c: int = 0, d: int = 0,
-                     e: int = 0, f: int = 0) -> None: ...
+    apps["query"] = app
 
-    @base.get("/search", status_code=204)
+    app = new()
+
+    @app.get("/query6", status_code=204)
+    async def query6(
+        a: int = 0, b: int = 0, c: int = 0, d: int = 0, e: int = 0, f: int = 0
+    ) -> None: ...
+
+    apps["query6"] = app
+
+    app = new()
+
+    @app.get("/search", status_code=204)
     async def search(q: str = "", page: int = 1) -> None: ...
 
-    apps = {"base": base}
+    apps["search"] = app
+
     for k in (50, 200):
         apps[f"dyn{k}"] = app = new()
         for i in range(k):
+
             async def h(item_id: int) -> None: ...
+
             app.get(f"/r{i}/{{item_id}}", status_code=204)(h)
     for k in (1, 3, 5):
         apps[f"mw{k}"] = app = new()
@@ -260,11 +442,18 @@ def fa_apps() -> dict:
 # --- ASGI: каждый запрос получает свой scope, как от сервера ---------------------
 def asgi_scope(path: str, qs: str) -> dict:
     return {
-        "type": "http", "asgi": {"version": "3.0", "spec_version": "2.3"},
-        "http_version": "1.1", "method": "GET", "scheme": "http",
-        "path": path, "raw_path": path.encode(), "root_path": "",
-        "query_string": qs.encode(), "headers": [(b"host", b"127.0.0.1")],
-        "client": ("127.0.0.1", 50000), "server": ("127.0.0.1", 8000),
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "root_path": "",
+        "query_string": qs.encode(),
+        "headers": [(b"host", b"127.0.0.1")],
+        "client": ("127.0.0.1", 50000),
+        "server": ("127.0.0.1", 8000),
     }
 
 
@@ -291,12 +480,23 @@ def scopes(path: str, qs: str) -> tuple[list, list]:
     # разные id, как в настоящем трафике: иначе отвечает кеш маршрутов
     # (у BlackSheep lru_cache на 1200 путей), а не сама маршрутизация
     if "{id}" not in path:
-        return ([SimpleNamespace(method="GET", path=path, query_string=qs,
-                                 headers={})] * N, [asgi_scope(path, qs)] * N)
+        return (
+            [
+                SimpleNamespace(
+                    method="GET", path=path, query_string=qs, headers={}
+                )
+            ]
+            * N,
+            [asgi_scope(path, qs)] * N,
+        )
     paths = [path.format(id=i) for i in range(N)]
-    return ([SimpleNamespace(method="GET", path=p, query_string=qs,
-                             headers={}) for p in paths],
-            [asgi_scope(p, qs) for p in paths])
+    return (
+        [
+            SimpleNamespace(method="GET", path=p, query_string=qs, headers={})
+            for p in paths
+        ],
+        [asgi_scope(p, qs) for p in paths],
+    )
 
 
 # --- замер ---------------------------------------------------------------------
@@ -321,34 +521,55 @@ async def batch(fn, scopes: list) -> float:
 
 def use(variant: str) -> None:
     rapis.types.parse_query = (
-        PYTHON_QUERY if variant == "rapis (no C)" else NATIVE_QUERY
+        PYTHON_QUERY if variant == RAPIS_NO_C else NATIVE_QUERY
     )
 
 
 def table(title: str, rows: list, fmt) -> None:
-    print(f"\n{title:26}" + "".join(f"{v:>13}" for v in VARIANTS))
+    print(f"\n{title:26}" + "".join(f"{v:>17}" for v in VARIANTS))
     for name, cells in rows:
-        print(f"{name:26}" + "".join(f"{fmt(cells[v]):>13}" for v in VARIANTS))
+        print(f"{name:26}" + "".join(f"{fmt(cells[v]):>17}" for v in VARIANTS))
 
 
 async def main() -> None:
-    print(f"Python {sys.version.split()[0]}, " + ", ".join(
-        f"{p} {version(p)}" for p in
-        ("msgspec", "blacksheep", "litestar", "fastapi", "starlette")))
+    print(
+        f"Python {sys.version.split()[0]}, "
+        + ", ".join(
+            f"{p} {version(p)}"
+            for p in (
+                "msgspec",
+                "blacksheep",
+                "litestar",
+                "fastapi",
+                "starlette",
+            )
+        )
+    )
     if NATIVE_QUERY is PYTHON_QUERY:
-        print("rapis C module is not built: both rapis columns are the same")
+        print(
+            "rapis C module is not built: both rapis 0.1 columns are the same"
+        )
     rapis_built = rapis_apps()
-    built = {"rapis": rapis_built, "rapis (no C)": rapis_built,
-             "BlackSheep": bs_apps(), "Litestar": ls_apps(),
-             "FastAPI": fa_apps()}
+    built = {
+        RAPIS: rapis_built,
+        RAPIS_NO_C: rapis_built,
+        RAPIS_004: rapis004_apps(),
+        "BlackSheep": bs_apps(),
+        "Litestar": ls_apps(),
+        "FastAPI": fa_apps(),
+    }
     for app in built["BlackSheep"].values():
         await app.start()
     scenarios = []
     for name, key, path, qs in SCENARIOS:
         rsgi_scopes, asgi_scopes = scopes(path, qs)
-        runs = {v: (*(asgi_caller if v in ASGI else rsgi_caller)(
-            built[v][key]), asgi_scopes if v in ASGI else rsgi_scopes)
-            for v in VARIANTS}
+        runs = {
+            v: (
+                *(asgi_caller if v in ASGI else rsgi_caller)(built[v][key]),
+                asgi_scopes if v in ASGI else rsgi_scopes,
+            )
+            for v in VARIANTS
+        }
         scenarios.append((name, rsgi_scopes, asgi_scopes, runs))
     for _, _, _, runs in scenarios:  # прогрев и проверка, что все отвечают 204
         for v, (call, status, sc) in runs.items():
@@ -376,12 +597,19 @@ async def main() -> None:
         own = {v: min(base_asgi if v in ASGI else base) for v in VARIANTS}
         net = {v: [t - own[v] for t in res[v]] for v in VARIANTS}
         best.append((name, {v: min(net[v]) for v in VARIANTS}))
-        ratios.append((name, {
-            v: statistics.median(x / y for x, y in zip(net[v], net["rapis"]))
-            for v in VARIANTS
-        }))
+        ratios.append(
+            (
+                name,
+                {
+                    v: statistics.median(
+                        x / y for x, y in zip(net[v], net[RAPIS])
+                    )
+                    for v in VARIANTS
+                },
+            )
+        )
         print(f"  {name}: done", file=sys.stderr)
-    use("rapis")
+    use(RAPIS)
 
     table("ns per request, best", best, lambda x: f"{x:.0f}")
     table("relative to rapis", ratios, lambda x: f"{x:.2f}")
