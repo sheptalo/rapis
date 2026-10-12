@@ -4,113 +4,34 @@ import os
 import re
 from collections.abc import Awaitable, Callable, Generator, Iterable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, get_type_hints
+from typing import Any, get_type_hints
 
 import msgspec
 
 from rapis.exceptions import BuildError
+from rapis.responses import method_not_allowed, not_found
+from rapis.router import Router
+from rapis.serializer import json
 from rapis.types import (
+    PARAM,
+    PARSER_LITERAL,
+    SERIALIZER_LITERAL,
+    Dynamic,
     Handler,
     HandlerSpec,
+    Matcher,
     Middleware,
     Param,
     Parser,
+    ParserCallable,
     Request,
     Response,
     Serializer,
+    Step,
+    Walked,
 )
 
-if TYPE_CHECKING:
-    from rapis.app import Router
-
-_encode = msgspec.json.Encoder().encode
-_JSON = ("content-type", "application/json")
-_PARSER_LITERAL = "__rapis_parsers__"
-_SERIALIZER_LITERAL = "__rapis_serializer__"
-_PARAM = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
-
-type _Step = Callable[[Request, dict[str, Any]], None]
-type _Walked = tuple[
-    HandlerSpec, str, tuple[Middleware, ...], Parser | None, Serializer | None
-]
-type _Dynamic = tuple[dict[str, Any], list[tuple[str, int]]]
-type _Matcher = tuple[
-    Callable[[str], re.Match[str] | None], dict[int | None, _Dynamic]
-]
 _GROUPS_FROM = 32
-
-
-class MsgSpecParser:
-    def __init__(
-        self, source: str = "query", fields: Sequence[str] | None = None
-    ) -> None:
-        if source not in ("query", "body"):
-            raise ValueError(f"unknown source {source!r}")
-        self.source = source
-        self.fields = fields
-        self.needs_body = source == "body"
-
-    def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
-        func.__dict__.setdefault(_PARSER_LITERAL, []).append(self)
-        return func
-
-    def build(
-        self, params: list[Param]
-    ) -> Callable[[Request], dict[str, Any]]:
-        asdict = msgspec.structs.asdict
-        if (
-            self.source == "body"
-            and len(params) == 1
-            and issubclass(params[0].type, msgspec.Struct)
-        ):
-            (p,) = params
-            decode = msgspec.json.Decoder(p.type).decode
-            name, default = p.name, p.default
-            if p.required:
-                return lambda req: {name: decode(req.body)}
-            return lambda req: {
-                name: decode(req.body) if req.body else default
-            }
-        model = msgspec.defstruct(
-            "Params",
-            [
-                (p.name, p.type) if p.required else (p.name, p.type, p.default)
-                for p in params
-            ],
-            kw_only=True,
-        )
-        if self.source == "query":
-            convert = msgspec.convert
-            return lambda req: asdict(convert(req.query, model, strict=False))
-        decode = msgspec.json.Decoder(model).decode
-        return lambda req: asdict(decode(req.body or b"{}"))
-
-
-class JsonSerializer:
-    def __call__(self, func: Callable[..., Any]) -> Callable[..., Any]:
-        setattr(func, _SERIALIZER_LITERAL, self)
-        return func
-
-    def build(self, tp: Any, status: int) -> Callable[[Any], Response]:
-        if tp is None or tp is type(None):
-            code = 204 if status == 200 else status
-            return lambda _value: Response(code)
-        if isinstance(tp, type) and issubclass(tp, Response):
-            return lambda value: value
-        if tp is Any or tp is inspect.Parameter.empty:
-            return lambda value: (
-                value
-                if isinstance(value, Response)
-                else Response(status, [_JSON], _encode(value))
-            )
-        return lambda value: Response(status, [_JSON], _encode(value))
-
-
-json = JsonSerializer()
-
-
-def json_response(status: int, payload: Any) -> Response:
-    return Response(status, [_JSON], _encode(payload))
 
 
 @dataclass(slots=True)
@@ -127,7 +48,7 @@ def _walk(
     serializer: Serializer | None = None,
     *,
     root: bool = True,
-) -> Generator[_Walked, None, None]:
+) -> Generator[Walked, None, None]:
     if router.outer_middlewares and not root:
         raise BuildError("outer middlewares allowed only in root router")
     prefix += router.prefix
@@ -156,14 +77,14 @@ def _compile(
         Param(n, hints.get(n, str), p.default)
         for n, p in inspect.signature(func).parameters.items()
     ]
-    found = _PARAM.findall(full_path)
+    found = PARAM.findall(full_path)
     path_names = set(found)
     if len(path_names) != len(found):
         raise BuildError(f"{name}: path params repeated {found}")
     provided = {key for mw in inner for key in getattr(mw, "provides", ())}
 
-    parsers = getattr(func, _PARSER_LITERAL, None) or (
-        [default_parser] if default_parser else []
+    parsers: list[Parser] = getattr(
+        func, PARSER_LITERAL, [default_parser] if default_parser else []
     )
     rest = [pr for pr in parsers if pr.fields is None]
     if len(rest) > 1:
@@ -182,9 +103,7 @@ def _compile(
     used = [pr for pr in parsers if per_parser[id(pr)]]
     steps += [_put_parsed(pr.build(per_parser[id(pr)])) for pr in used]
 
-    serializer = (
-        getattr(func, _SERIALIZER_LITERAL, None) or default_serializer or json
-    )
+    serializer = getattr(func, SERIALIZER_LITERAL, default_serializer) or json
     render = serializer.build(
         hints.get("return", inspect.Parameter.empty), spec.status
     )
@@ -230,14 +149,14 @@ def _distribute(
     return request_names, path_params, state_names, per_parser
 
 
-def _put_request(name: str) -> _Step:
+def _put_request(name: str) -> Step:
     def step(req: Request, kw: dict[str, Any]) -> None:
         kw[name] = req
 
     return step
 
 
-def _put_path(params: Sequence[Param]) -> _Step:
+def _put_path(params: Sequence[Param]) -> Step:
     names = [p.name for p in params]
     if all(p.type is str for p in params):
 
@@ -251,13 +170,36 @@ def _put_path(params: Sequence[Param]) -> _Step:
     )
     convert, asdict = msgspec.convert, msgspec.structs.asdict
 
-    def step(req: Request, kw: dict[str, Any]) -> None:
+    def slow(req: Request, kw: dict[str, Any]) -> None:
         kw.update(asdict(convert(req.path_params, model, strict=False)))
+
+    if not all(p.type in (int, str) for p in params):
+        return slow
+    # int берём напрямую только из простой десятичной строки; всё остальное
+    # (знак, пробелы, ведущие нули, не-ASCII) отдаём msgspec, чтобы ошибки
+    # и результаты совпадали с прежними
+    typed = [(p.name, p.type is int) for p in params]
+
+    def step(req: Request, kw: dict[str, Any]) -> None:
+        pp = req.path_params
+        for n, is_int in typed:
+            raw = pp[n]
+            if is_int:
+                if not (
+                    raw.isdigit()
+                    and raw.isascii()
+                    and (raw == "0" or raw[0] != "0")
+                ):
+                    slow(req, kw)
+                    return
+                kw[n] = int(raw)
+            else:
+                kw[n] = raw
 
     return step
 
 
-def _put_state(names: list[str]) -> _Step:
+def _put_state(names: list[str]) -> Step:
     def step(req: Request, kw: dict[str, Any]) -> None:
         for n in names:
             kw[n] = req.state[n]
@@ -265,16 +207,14 @@ def _put_state(names: list[str]) -> _Step:
     return step
 
 
-def _put_parsed(parse: Callable[[Request], dict[str, Any]]) -> _Step:
+def _put_parsed(parse: ParserCallable) -> Step:
     def step(req: Request, kw: dict[str, Any]) -> None:
         kw.update(parse(req))
 
     return step
 
 
-def _compose(
-    steps: Sequence[_Step],
-) -> Callable[[Request], dict[str, Any]] | None:
+def _compose(steps: Sequence[Step]) -> ParserCallable | None:
     if not steps:
         return None
     if len(steps) == 1:
@@ -299,10 +239,10 @@ def _compose(
 
 def _pipeline(
     func: Callable[..., Awaitable[Any]],
-    bind: Callable[[Request], dict[str, Any]] | None,
+    bind: ParserCallable | None,
     needs_body: bool,
     render: Callable[[Request], Response],
-) -> Callable[[Request], Awaitable[Response]]:
+) -> Handler:
 
     if bind is None:
 
@@ -327,16 +267,14 @@ def _pipeline(
     return run
 
 
-def build_dispatch(
-    router: "Router",
-) -> Callable[[Request], Awaitable[Response]]:
+def build_dispatch(router: "Router") -> Callable[[Request], Handler]:
     static: dict[str, dict[str, Any]] = {}
     dynamic: dict[str, dict[str, Any]] = {}
     for spec, prefix, inner, parser, serializer in _walk(router):
         full_path, methods, route = _compile(
             spec, prefix, inner, parser, serializer
         )
-        table = (dynamic if _PARAM.search(full_path) else static).setdefault(
+        table = (dynamic if PARAM.search(full_path) else static).setdefault(
             full_path, {}
         )
         for m in methods:
@@ -352,12 +290,12 @@ def build_dispatch(
     return _dispatcher(static, dynamic)
 
 
-def _alternation(routes: Iterable[tuple[str, dict[str, Any]]]) -> _Matcher:
+def _alternation(routes: Iterable[tuple[str, dict[str, Any]]]) -> Matcher:
     alternatives: list[str] = []
-    by_last: dict[int | None, _Dynamic] = {}
+    by_last: dict[int | None, Dynamic] = {}
     group = 0
     for full_path, table in routes:
-        parts = _PARAM.split(full_path)
+        parts = PARAM.split(full_path)
         groups = []
         for name in parts[1::2]:
             group += 1
@@ -373,10 +311,9 @@ def _alternation(routes: Iterable[tuple[str, dict[str, Any]]]) -> _Matcher:
 
 
 def _dispatcher(
-    static: dict[str, dict[str, Any]],
-    dynamic: dict[str, dict[str, Any]],
-) -> Callable[[Request], Awaitable[Response]]:
-    groups: dict[str, _Matcher] = {}
+    static: dict[str, dict[str, Any]], dynamic: dict[str, dict[str, Any]]
+) -> Callable[[Request], Handler]:
+    groups: dict[str, Matcher] = {}
     ungrouped = _alternation(dynamic.items())
     start = 0
     if len(dynamic) >= _GROUPS_FROM:
@@ -392,7 +329,7 @@ def _dispatcher(
         }
         ungrouped = _alternation(r for k, r in keyed if "{" in k)
 
-    async def dispatch(req: Request) -> Response:
+    def resolve(req: Request) -> Handler:
         scope = req.scope
         path = scope.path
         table = static.get(path)
@@ -404,12 +341,13 @@ def _dispatcher(
             )
             found = match(path)
             if found is None:
-                return json_response(404, {"detail": "Not Found"})
+                return not_found
             table, params = by_last[found.lastindex]
             req.path_params = {name: found.group(i) for name, i in params}
         handler: Handler | None = table.get(scope.method) or table.get("*")
         if handler is None:
-            return Response(405, [("allow", ", ".join(sorted(table)))])
-        return await handler(req)
+            allow = ", ".join(sorted(table))
+            return functools.partial(method_not_allowed, allow)
+        return handler
 
-    return dispatch
+    return resolve

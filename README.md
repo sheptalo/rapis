@@ -102,6 +102,8 @@ Resolved once, when the app is built, in this order:
 
 Return values are encoded as JSON with the `status` of the route; `-> None` answers `204`, a returned `Response(status, headers, body)` is sent as is.
 
+`Request` and `Response` are `msgspec.Struct`s: `==` compares their fields, not identity, and they are unhashable, so they cannot be used as dict keys or in sets.
+
 ### Middlewares, errors
 
 ```python
@@ -117,7 +119,7 @@ from rapis import (
 )
 
 root = Router()
-# outer middlewares live on the root router only and wrap error responses too
+# outer middlewares live on the root router only and see every request, 404 included
 root.outer_middlewares.append(CORSMiddleware(allow_origins=["https://example.com"]))
 
 
@@ -146,6 +148,8 @@ async def update_item(item_id: int) -> None:
 
 app = App(root)
 ```
+
+A middleware should return a `Response` instead of raising. If it raises, its own code after `await handler(request)` is skipped, so CORS, for example, cannot add headers to that error; the app still turns the exception into a response (`HTTPError` mapping) or a `500`. Errors raised deeper, in handlers or in inner middlewares, are already responses by the time an outer middleware sees them, so outer middlewares decorate them as usual.
 
 ## Performance [benchmarks](benchmarks)
 

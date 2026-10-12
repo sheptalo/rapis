@@ -1,6 +1,10 @@
-from rapis._build import JsonSerializer, MsgSpecParser, json, json_response
-from rapis.app import App, CORSMiddleware, Router
+from rapis.app import App
 from rapis.exceptions import BuildError, HTTPError
+from rapis.middleware import CORSMiddleware
+from rapis.parser import MsgSpecParser
+from rapis.responses import json_response
+from rapis.router import Router
+from rapis.serializer import json
 from rapis.types import (
     ExceptionHandler,
     Handler,
@@ -19,7 +23,6 @@ __all__ = [
     "ExceptionHandler",
     "HTTPError",
     "Handler",
-    "JsonSerializer",
     "Middleware",
     "MsgSpecParser",
     "Param",

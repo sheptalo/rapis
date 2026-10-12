@@ -38,6 +38,7 @@ standard = ["granian[uvloop]>=2.7.4"]
 [dependency-groups]
 dev = [
     "granian>=2.7.6",
+    "mypy>=2.4.0",
     "pre-commit>=4.6.0",
     "pytest>=9.0.3",
     "ruff>=0.15.12",

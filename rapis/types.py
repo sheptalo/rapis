@@ -1,41 +1,51 @@
 import inspect
+import re
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
+
+import msgspec
 
 try:
     from rapis._speedups import parse_query
 except ImportError:
     from rapis._query import parse_query
 
+SERIALIZER_LITERAL = "__rapis_serializer__"
+PARSER_LITERAL = "__rapis_parsers__"
 
-class HttpProtocol(Protocol):  # source: granian .pyi file
+
+type Header = tuple[str, str]
+type Headers = list[Header]
+type Step = Callable[[Request, dict[str, Any]], None]
+type Walked = tuple[
+    HandlerSpec, str, tuple[Middleware, ...], Parser | None, Serializer | None
+]
+type Dynamic = tuple[dict[str, Any], list[tuple[str, int]]]
+type Matcher = tuple[
+    Callable[[str], re.Match[str] | None], dict[int | None, Dynamic]
+]
+PARAM = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+class HttpProtocol(Protocol):
     async def __call__(self) -> bytes: ...
     def __aiter__(self) -> Any: ...
     async def client_disconnect(self) -> None: ...
-    def response_empty(
-        self, status: int, headers: list[tuple[str, str]]
-    ) -> None: ...
+    def response_empty(self, status: int, headers: Headers) -> None: ...
     def response_str(
-        self, status: int, headers: list[tuple[str, str]], body: str
+        self, status: int, headers: Headers, body: str
     ) -> None: ...
     def response_bytes(
-        self, status: int, headers: list[tuple[str, str]], body: bytes
+        self, status: int, headers: Headers, body: bytes
     ) -> None: ...
     def response_file(
-        self, status: int, headers: list[tuple[str, str]], file: str
+        self, status: int, headers: Headers, file: str
     ) -> None: ...
     def response_file_range(
-        self,
-        status: int,
-        headers: list[tuple[str, str]],
-        file: str,
-        start: int,
-        end: int,
+        self, status: int, headers: Headers, file: str, start: int, end: int
     ) -> None: ...
-    def response_stream(
-        self, status: int, headers: list[tuple[str, str]]
-    ) -> Any: ...
+    def response_stream(self, status: int, headers: Headers) -> Any: ...
 
 
 class Scope(
@@ -54,30 +64,19 @@ class Scope(
     authority: str | None
 
 
-class Response:
-    __slots__ = ("status", "headers", "body")
-
-    def __init__(
-        self,
-        status: int = 200,
-        headers: list[tuple[str, str]] | None = None,
-        body: bytes = b"",
-    ) -> None:
-        self.status = status
-        self.headers = headers if headers is not None else []
-        self.body = body
+class Response(msgspec.Struct):
+    status: int = 200
+    headers: Headers = msgspec.field(default_factory=list)
+    body: bytes = b""
 
 
-class Request:
-    __slots__ = ("scope", "proto", "path_params", "state", "body", "_query")
-
-    def __init__(self, scope: Scope, proto: HttpProtocol) -> None:
-        self.scope = scope
-        self.proto = proto
-        self.path_params: dict[str, str] = {}
-        self.state: dict[str, Any] = {}
-        self.body = b""
-        self._query: dict[str, str] | None = None
+class Request(msgspec.Struct):
+    scope: Scope
+    proto: HttpProtocol
+    path_params: dict[str, str] = msgspec.field(default_factory=dict)
+    state: dict[str, Any] = msgspec.field(default_factory=dict)
+    body: bytes = b""
+    _query: dict[str, str] | None = None
 
     @property
     def query(self) -> dict[str, str]:
@@ -108,17 +107,31 @@ class Middleware(Protocol):
     ) -> Response: ...
 
 
-class Parser(Protocol):
-    needs_body: bool
+type ParserCallable = Callable[[Request], dict[str, Any]]
+
+
+class Parser:
     fields: Sequence[str] | None
+    needs_body: bool
 
-    def build(
-        self, params: list[Param]
-    ) -> Callable[[Request], dict[str, Any]]: ...
+    def __call__[F: Callable[..., Any]](self, func: F) -> F:
+        func.__dict__.setdefault(PARSER_LITERAL, []).append(self)
+        return func
+
+    def build(self, params: list[Param]) -> ParserCallable:
+        raise NotImplementedError
 
 
-class Serializer(Protocol):
-    def build(self, tp: Any, status: int) -> Callable[[Any], Response]: ...
+type SerializerCallable = Callable[[Any], Response]
+
+
+class Serializer:
+    def __call__[F: Callable[..., Any]](self, func: F) -> F:
+        setattr(func, SERIALIZER_LITERAL, self)
+        return func
+
+    def build(self, tp: Any, status: int) -> SerializerCallable:
+        raise NotImplementedError
 
 
 @dataclass(slots=True)
